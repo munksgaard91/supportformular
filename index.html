@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opret supportsag · Best One</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blaa:#225581; --blaa-moerk:#183d5e; --blaa-lys:#e8eff6;
+  --tekst:#1c2733; --daemp:#5d6b7a; --linje:#d6dee6; --flade:#ffffff; --bund:#eef2f5;
+  --haster:#c2410c; --haster-lys:#fff1e8; --ok:#1f7a4d; --ok-lys:#e6f4ec; --fejl:#b42318;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Montserrat,system-ui,sans-serif;background:var(--bund);color:var(--tekst);font-size:15px;line-height:1.5}
+main{max-width:680px;margin:40px auto;padding:0 16px}
+.kort{background:var(--flade);border-radius:16px;padding:36px 40px;border:1px solid var(--linje)}
+h1{font-size:26px;font-weight:700;margin:0 0 24px;color:var(--blaa)}
+.intro{color:var(--daemp);margin:0 0 28px}
+.felt{margin-bottom:22px;position:relative}
+label,.lbl{display:block;font-weight:600;font-size:14px;margin-bottom:8px}
+.hj{display:block;font-size:13px;color:var(--daemp);margin-bottom:8px}
+.krav{color:var(--fejl)}
+input[type=text],input[type=email],input[type=tel],input[type=url],textarea{
+  width:100%;font:inherit;padding:10px 12px;border:1px solid var(--linje);border-radius:var(--r);background:#fff;color:var(--tekst)}
+textarea{min-height:110px;resize:vertical}
+input:focus,textarea:focus,button:focus-visible,.seg button:focus-visible{outline:2px solid var(--blaa);outline-offset:1px}
+.raekke{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.kort{padding:24px 20px}.raekke{grid-template-columns:1fr}}
+
+/* Segmenter */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{font:inherit;font-size:14px;font-weight:500;padding:8px 14px;border-radius:999px;border:1px solid var(--linje);background:#fff;color:var(--tekst);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--blaa);border-color:var(--blaa);color:#fff}
+.seg button.haster[aria-pressed=true]{background:var(--haster);border-color:var(--haster)}
+
+/* Combobox */
+.combo{position:relative}
+.liste{position:absolute;z-index:10;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--linje);border-radius:var(--r);max-height:300px;overflow:auto;box-shadow:0 8px 24px rgba(28,39,51,.12);display:none}
+.liste.aaben{display:block}
+.valg{padding:9px 12px;cursor:pointer;display:flex;gap:10px;align-items:center}
+.valg[aria-selected=true],.valg:hover{background:var(--blaa-lys)}
+.valg .sub{font-size:12.5px;color:var(--daemp)}
+.valg .pille{margin-left:auto;font-size:11.5px;padding:2px 8px;border-radius:999px;background:#f1f1f1;color:var(--daemp)}
+.tom{padding:12px;color:var(--daemp);font-size:14px}
+.tom button{font:inherit;color:var(--blaa);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--blaa-lys);color:var(--blaa);font-size:11px;font-weight:700;display:grid;place-items:center;flex:none;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+
+/* Valgt kunde */
+.kunde{border:1px solid var(--blaa);background:var(--blaa-lys);border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:center}
+.kunde b{display:block}
+.kunde .sub{font-size:13px;color:var(--daemp)}
+.kunde .handl{margin-left:auto;display:flex;gap:12px;font-size:13px;white-space:nowrap}
+.link{color:var(--blaa);background:none;border:0;font:inherit;font-size:13px;padding:0;cursor:pointer;text-decoration:underline}
+.advarsel{margin-top:8px;font-size:13px;color:var(--haster)}
+
+/* Valgte personer */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--blaa-lys);border-radius:999px;padding:3px 4px 3px 4px;font-size:13.5px}
+.chip .avatar{width:22px;height:22px;font-size:10px}
+.chip button{border:0;background:none;cursor:pointer;color:var(--daemp);font-size:16px;line-height:1;padding:0 6px}
+
+.forhaand{font-size:13px;color:var(--daemp);margin-top:6px}
+.forhaand b{color:var(--tekst);font-weight:600}
+.blok{border-left:3px solid var(--blaa-lys);padding-left:16px;margin:0 0 22px}
+.skjult{display:none !important}
+
+.knap{width:100%;font:inherit;font-weight:600;font-size:16px;padding:14px;border-radius:var(--r);border:0;background:var(--blaa);color:#fff;cursor:pointer}
+.knap:hover{background:var(--blaa-moerk)}
+.knap:disabled{opacity:.6;cursor:wait}
+.knap.sek{background:#fff;color:var(--blaa);border:1px solid var(--blaa)}
+.fejlbesked{color:var(--fejl);font-size:14px;margin:10px 0 0;min-height:1em}
+
+/* Login */
+.login{text-align:center;padding:48px 40px}
+.login p{color:var(--daemp);margin:0 0 24px}
+#gBtn{display:flex;justify-content:center;min-height:44px}
+.bruger{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:-16px 0 24px;font-size:13px;color:var(--daemp)}
+
+/* Kvittering */
+.kvit{text-align:center}
+.billet{margin:24px auto;max-width:420px;border:2px dashed var(--blaa);border-radius:14px;padding:20px}
+.billet .navn{font-size:14px;color:var(--daemp);margin-bottom:6px}
+.billet .id{font-size:34px;font-weight:700;letter-spacing:.04em;color:var(--blaa);font-variant-numeric:tabular-nums}
+.billet .knapper{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.billet .knapper button,.billet .knapper a{font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border-radius:999px;border:1px solid var(--blaa);background:#fff;color:var(--blaa);text-decoration:none;cursor:pointer}
+.fakta{text-align:left;max-width:420px;margin:0 auto 24px;padding:0;list-style:none;font-size:14px}
+.fakta li{padding:8px 0;border-bottom:1px solid var(--linje)}
+.fakta li.obs{color:var(--haster)}
+@media (prefers-reduced-motion:no-preference){.kvit .billet{animation:ind .35s ease-out}}
+@keyframes ind{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+</style>
+</head>
+<body>
+<main>
+<section class="kort login skjult" id="login">
+  <h1>Opret supportsag</h1>
+  <p>Log ind med din Best One-konto for at fortsætte.</p>
+  <div id="gBtn"></div>
+  <p class="fejlbesked" id="loginFejl" role="alert"></p>
+</section>
+
+<section class="kort skjult" id="formular">
+  <h1>Opret supportsag</h1>
+  <div class="bruger"><span id="brugerNavn"></span><button class="link" type="button" id="logud">Log ud</button></div>
+
+  <div class="felt">
+    <span class="lbl">Kunde <span class="krav">*</span></span>
+    <div id="kundeSoeg" class="combo">
+      <input type="text" id="kundeInput" placeholder="Henter kunder…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="kundeListe">
+      <div class="liste" id="kundeListe" role="listbox"></div>
+    </div>
+    <div id="kundeValgt" class="skjult"></div>
+    <div id="manuel" class="skjult">
+      <input type="url" id="manuelUrl" placeholder="www.kundenshjemmeside.dk">
+      <p class="forhaand">Sagen oprettes uden link og får tagget <b>ikke linket</b>. <button class="link" type="button" id="tilbageSoeg">Søg igen</button></p>
+    </div>
+  </div>
+
+  <div class="felt">
+    <span class="lbl">Type</span>
+    <div class="seg" id="type">
+      <button type="button" data-v="normal" aria-pressed="true">Almindelig</button>
+      <button type="button" data-v="haster" class="haster" aria-pressed="false">Haster</button>
+      <button type="button" data-v="fak" aria-pressed="false">FAK</button>
+    </div>
+    <p class="forhaand" id="deadlineTekst">Deadline om 5 arbejdsdage.</p>
+  </div>
+
+  <div class="felt">
+    <label for="emne">Emne <span class="krav">*</span></label>
+    <input type="text" id="emne" placeholder="F.eks. Rettelser til forsiden">
+    <p class="forhaand skjult" id="navnPreview"></p>
+  </div>
+
+  <div class="felt">
+    <label for="henvendelse">Hvad handler opgaven om?</label>
+    <textarea id="henvendelse"></textarea>
+  </div>
+
+  <div class="felt">
+    <label for="materialer">Link til materialer</label>
+    <input type="url" id="materialer" placeholder="https://">
+  </div>
+
+  <div class="felt">
+    <span class="lbl">Svar til <span class="krav">*</span></span>
+    <div class="seg" id="svarTil">
+      <button type="button" data-v="kunden" aria-pressed="false">Kunden</button>
+      <button type="button" data-v="nord" aria-pressed="false">Nørd</button>
+      <button type="button" data-v="kundenNord" aria-pressed="false">Kunden med nørd CC</button>
+    </div>
+  </div>
+
+  <div class="blok skjult" id="kontaktBlok">
+    <div class="raekke">
+      <div class="felt"><label for="kNavn">Kundens navn <span class="krav">*</span></label><input type="text" id="kNavn"></div>
+      <div class="felt"><label for="kTlf">Telefon</label><input type="tel" id="kTlf" placeholder="12 34 56 78"></div>
+    </div>
+    <div class="felt"><label for="kEmail">E-mail på kunden <span class="krav">*</span></label><input type="email" id="kEmail"></div>
+    <p class="forhaand skjult" id="kontaktKilde">Hentet fra kundekortet. Ret hvis det er en anden person.</p>
+  </div>
+
+  <div class="blok skjult" id="nordBlok">
+    <div class="felt"><span class="lbl">Hvem er nørd? <span class="krav">*</span></span><div id="nord"></div></div>
+  </div>
+
+  <div class="felt">
+    <span class="lbl">CC på mailsvar</span>
+    <div id="cc"></div>
+  </div>
+
+  <button class="knap" id="opret" type="button">Opret supportsag</button>
+  <p class="fejlbesked" id="fejl" role="alert"></p>
+</section>
+
+<section class="kort kvit skjult" id="kvittering" aria-live="polite"></section>
+</main>
+
+<script>
+// Konfiguration
+const API = 'https://supportformular.best-one.workers.dev'; // workerens adresse
+const GOOGLE_CLIENT_ID = '733090718962-9dda64antqa8ki7j5q3de1nfrv7rod35.apps.googleusercontent.com';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').trim();
+
+let KUNDER = [], FOLK = [];
+const S = { kunde: null, manuel: false, type: 'normal', svar: null, nord: null, cc: [] };
+
+function avatar(p) {
+  return `<span class="avatar">${p.billede ? `<img src="${esc(p.billede)}" alt="">` : esc(p.initialer || p.navn.slice(0, 2).toUpperCase())}</span>`;
+}
+
+// ---------- Generisk søgeliste ----------
+function combo({ input, liste, hent, render, vaelg, tom }) {
+  let fund = [], aktiv = 0;
+  function tegn() {
+    fund = hent(input.value);
+    aktiv = 0;
+    liste.innerHTML = fund.length
+      ? fund.map((x, i) => `<div class="valg" role="option" data-i="${i}" aria-selected="${i === 0}">${render(x)}</div>`).join('')
+      : `<div class="tom">${tom ? tom(input.value) : 'Ingen resultater'}</div>`;
+    liste.classList.add('aaben');
+    input.setAttribute('aria-expanded', 'true');
+  }
+  function luk() { liste.classList.remove('aaben'); input.setAttribute('aria-expanded', 'false'); }
+  function marker(i) {
+    aktiv = Math.max(0, Math.min(fund.length - 1, i));
+    liste.querySelectorAll('.valg').forEach((el, j) => el.setAttribute('aria-selected', j === aktiv));
+    liste.querySelector(`[data-i="${aktiv}"]`)?.scrollIntoView({ block: 'nearest' });
+  }
+  input.addEventListener('input', tegn);
+  input.addEventListener('focus', tegn);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); marker(aktiv + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); marker(aktiv - 1); }
+    else if (e.key === 'Enter' && fund[aktiv]) { e.preventDefault(); vaelg(fund[aktiv]); input.value = ''; luk(); }
+    else if (e.key === 'Escape') luk();
+  });
+  liste.addEventListener('mousedown', (e) => {
+    e.preventDefault(); // behold fokus, så knapper i listen kan klikkes
+    const el = e.target.closest('.valg');
+    if (el) { vaelg(fund[+el.dataset.i]); input.value = ''; luk(); }
+  });
+  input.addEventListener('blur', () => setTimeout(luk, 120));
+  return { luk, tegn };
+}
+
+// ---------- Personvælger (enkelt eller flere) ----------
+function personVaelger(rod, { flere, placeholder, valgt, onChange }) {
+  rod.innerHTML = `<div class="chips"></div><div class="combo"><input type="text" placeholder="${placeholder}" autocomplete="off" role="combobox"><div class="liste" role="listbox"></div></div>`;
+  const chips = rod.querySelector('.chips'), input = rod.querySelector('input'), boks = rod.querySelector('.combo');
+  let ids = valgt ? [].concat(valgt) : [];
+  function opdater() {
+    const ps = ids.map((id) => FOLK.find((p) => p.id === id)).filter(Boolean);
+    chips.innerHTML = ps.map((p) => `<span class="chip">${avatar(p)}${esc(p.navn)}<button type="button" aria-label="Fjern ${esc(p.navn)}" data-id="${p.id}">×</button></span>`).join('');
+    boks.classList.toggle('skjult', !flere && ids.length > 0);
+    onChange(flere ? ids : ids[0] || null);
+  }
+  chips.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    ids = ids.filter((id) => id !== +b.dataset.id); opdater();
+    if (!flere) input.focus();
+  });
+  combo({
+    input, liste: rod.querySelector('.liste'),
+    hent: (q) => { q = norm(q); return FOLK.filter((p) => !ids.includes(p.id) && (!q || norm(p.navn).includes(q) || p.email.includes(q))).slice(0, 8); },
+    render: (p) => `${avatar(p)}<span>${esc(p.navn)}<br><span class="sub">${esc(p.email)}</span></span>`,
+    vaelg: (p) => { ids = flere ? [...ids, p.id] : [p.id]; opdater(); },
+  });
+  opdater();
+  return { saet: (v) => { ids = v ? [].concat(v) : []; opdater(); } };
+}
+
+// ---------- Kunde ----------
+function soegKunder(q) {
+  q = norm(q);
+  if (!q) return KUNDER.slice(0, 8);
+  const start = [], inde = [];
+  for (const k of KUNDER) {
+    const n = k.navn.toLowerCase();
+    const v = k.vis || k.domaene;
+    if (n.startsWith(q) || v.startsWith(q) || k.domaene.startsWith(q)) start.push(k);
+    else if (n.includes(q) || v.includes(q) || k.domaene.includes(q)) inde.push(k);
+    if (start.length >= 8) break;
+  }
+  return [...start, ...inde].slice(0, 8);
+}
+
+const LUKKET = /nedluk|opsag|opsig|lukket/i;
+const kundeCombo = combo({
+  input: $('#kundeInput'), liste: $('#kundeListe'),
+  hent: soegKunder,
+  render: (k) => `<span><b>${esc(k.navn)}</b><br><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>${LUKKET.test(k.status) ? `<span class="pille">${esc(k.status)}</span>` : ''}`,
+  vaelg: vaelgKunde,
+  tom: () => `Ingen kunder matcher. <button type="button" onclick="hentKunder(true)">Opdatér listen</button> eller <button type="button" onclick="manuelKunde()">opret uden kunde</button>.`,
+});
+
+function vaelgKunde(k) {
+  S.kunde = k; S.manuel = false;
+  $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.add('skjult');
+  const el = $('#kundeValgt');
+  el.classList.remove('skjult');
+  el.innerHTML = `<div class="kunde"><span><b>${esc(k.navn)}</b><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>
+    <span class="handl"><a class="link" href="${esc(k.url)}" target="_blank" rel="noopener">Åbn kort</a><button class="link" type="button" id="skiftKunde">Skift</button></span></div>
+    ${LUKKET.test(k.status) ? `<p class="advarsel">Kunden har status "${esc(k.status)}". Tjek at sagen er rigtig.</p>` : ''}`;
+  $('#skiftKunde').onclick = nulstilKunde;
+  udfyldKontakt(); opdaterNavn();
+}
+function nulstilKunde() {
+  S.kunde = null; S.manuel = false;
+  $('#kundeValgt').classList.add('skjult'); $('#manuel').classList.add('skjult');
+  $('#kundeSoeg').classList.remove('skjult');
+  $('#kundeInput').focus(); opdaterNavn();
+}
+function manuelKunde() {
+  S.kunde = null; S.manuel = true;
+  $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.remove('skjult');
+  $('#manuelUrl').focus(); opdaterNavn();
+}
+$('#tilbageSoeg').onclick = nulstilKunde;
+
+function udfyldKontakt() {
+  const k = S.kunde;
+  if (!k) return;
+  $('#kNavn').value = k.kontaktperson || '';
+  $('#kEmail').value = k.email || '';
+  $('#kTlf').value = k.telefon || '';
+  $('#kontaktKilde').classList.toggle('skjult', !(k.kontaktperson || k.email));
+}
+
+function opdaterNavn() {
+  const e = $('#emne').value.trim(), p = $('#navnPreview');
+  if (S.kunde && e) { p.innerHTML = `Opgaven hedder <b>${esc(S.kunde.navn)} | ${esc(e)}</b>`; p.classList.remove('skjult'); }
+  else p.classList.add('skjult');
+}
+$('#emne').addEventListener('input', opdaterNavn);
+
+// ---------- Segmenter ----------
+function segment(rod, onChange) {
+  rod.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    rod.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    onChange(b.dataset.v);
+  });
+}
+segment($('#type'), (v) => {
+  S.type = v;
+  $('#deadlineTekst').textContent = {
+    normal: 'Deadline om 5 arbejdsdage.',
+    haster: 'Deadline om 2 arbejdsdage og får øget prioritet.',
+    fak: 'Deadline senest fredag i indeværende uge.',
+  }[v];
+});
+segment($('#svarTil'), (v) => {
+  S.svar = v;
+  $('#kontaktBlok').classList.toggle('skjult', v === 'nord');
+  $('#nordBlok').classList.toggle('skjult', v === 'kunden');
+  if (v !== 'nord' && S.kunde && !$('#kNavn').value) udfyldKontakt();
+});
+
+// ---------- Data ----------
+async function hentKunder(frisk) {
+  const input = $('#kundeInput');
+  input.placeholder = 'Henter kunder…';
+  try {
+    KUNDER = await api('/api/kunder' + (frisk ? '?frisk=1' : ''));
+    input.placeholder = `Søg blandt ${KUNDER.length} kunder`;
+    if (frisk) kundeCombo.tegn();
+  } catch (e) {
+    input.placeholder = 'Kunne ikke hente kunder. Genindlæs siden.';
+  }
+}
+
+let nordVaelger, ccVaelger;
+async function start() {
+  hentKunder(false);
+  try { FOLK = await api('/api/medarbejdere'); } catch { FOLK = []; }
+  nordVaelger = personVaelger($('#nord'), { flere: false, placeholder: 'Vælg kollega', onChange: (id) => (S.nord = id) });
+  ccVaelger = personVaelger($('#cc'), { flere: true, placeholder: 'Tilføj kollega', onChange: (ids) => (S.cc = ids) });
+}
+// ---------- Opret ----------
+$('#opret').addEventListener('click', async () => {
+  const fejl = $('#fejl'); fejl.textContent = '';
+  const tjek = [
+    [!S.kunde && !(S.manuel && $('#manuelUrl').value.trim()), 'Vælg en kunde, eller skriv hjemmesiden hvis kunden ikke er på listen.'],
+    [!$('#emne').value.trim(), 'Skriv et emne.'],
+    [!S.svar, 'Vælg hvem der skal have svar.'],
+    [S.svar && S.svar !== 'nord' && !$('#kNavn').value.trim(), 'Skriv kundens navn.'],
+    [S.svar && S.svar !== 'nord' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($('#kEmail').value.trim()), 'Skriv en gyldig e-mail på kunden.'],
+    [S.svar && S.svar !== 'kunden' && !S.nord, 'Vælg hvem nørden er.'],
+  ].find(([b]) => b);
+  if (tjek) { fejl.textContent = tjek[1]; return; }
+
+  const knap = $('#opret'); knap.disabled = true; knap.textContent = 'Opretter…';
+  try {
+    const d = await api('/api/opret', {
+      method: 'POST',
+      body: JSON.stringify({
+        kundeId: S.kunde?.id || null,
+        hjemmeside: S.manuel ? $('#manuelUrl').value.trim() : null,
+        type: S.type,
+        emne: $('#emne').value,
+        henvendelse: $('#henvendelse').value,
+        materialer: $('#materialer').value.trim(),
+        svarTil: S.svar,
+        kontakt: { navn: $('#kNavn').value, email: $('#kEmail').value, telefon: $('#kTlf').value },
+        nord: S.nord, cc: S.cc,
+      }),
+    });
+    visKvittering(d);
+  } catch (e) {
+    fejl.textContent = e.message + ' Prøv igen, eller giv supporten besked hvis det fortsætter.';
+  } finally {
+    knap.disabled = false; knap.textContent = 'Opret supportsag';
+  }
+});
+
+function visKvittering(d) {
+  const k = $('#kvittering');
+  k.innerHTML = `
+    <h1>Supportsagen er oprettet</h1>
+    <p class="intro">Send ID'et videre til kunden eller kollegaen, hvis det er nødvendigt.</p>
+    <div class="billet">
+      <div class="navn">${esc(d.navn)}</div>
+      <div class="id">#${esc(d.id)}</div>
+      <div class="knapper"><button type="button" id="kopier">Kopiér ID</button><a href="${esc(d.url)}" target="_blank" rel="noopener">Åbn i ClickUp</a></div>
+    </div>
+    <ul class="fakta">
+      <li><b>Deadline:</b> ${esc(d.deadline)}${d.type === 'haster' ? ' (haster)' : ''}</li>
+      ${d.kunde ? `<li><b>Linket til:</b> <a href="${esc(d.kunde.url)}" target="_blank" rel="noopener">${esc(d.kunde.navn)}</a>${d.kommentar ? ', og der er skrevet en kommentar på kundens opgave' : ''}</li>`
+                : `<li class="obs">Sagen er ikke linket til en kunde. Link den manuelt i ClickUp.</li>`}
+      ${d.andre?.length ? `<li class="obs">Kunden har ${d.andre.length} anden åben supportsag${d.andre.length > 1 ? 'er' : ''}: ${d.andre.map((a) => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.navn)}</a>`).join(', ')}</li>` : ''}
+    </ul>
+    <button class="knap" type="button" id="nySag">Opret en ny supportsag</button>`;
+  $('#formular').classList.add('skjult'); k.classList.remove('skjult');
+  $('#kopier').onclick = async (e) => { try { await navigator.clipboard.writeText('#' + d.id); e.target.textContent = 'Kopieret'; } catch {} };
+  $('#nySag').onclick = nulstilAlt;
+  window.scrollTo(0, 0);
+}
+
+function nulstilAlt() {
+  ['#emne', '#henvendelse', '#materialer', '#kNavn', '#kEmail', '#kTlf', '#manuelUrl'].forEach((s) => ($(s).value = ''));
+  document.querySelectorAll('#type button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === 'normal'));
+  document.querySelectorAll('#svarTil button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+  S.type = 'normal'; S.svar = null;
+  $('#deadlineTekst').textContent = 'Deadline om 5 arbejdsdage.';
+  $('#kontaktBlok').classList.add('skjult'); $('#nordBlok').classList.add('skjult');
+  nordVaelger.saet(null); ccVaelger.saet([]);
+  nulstilKunde();
+  $('#kvittering').classList.add('skjult'); $('#formular').classList.remove('skjult');
+}
+// ---------- Login ----------
+const SESSION_KEY = 'supportformular.session';
+let startet = false, googleKlar = false;
+
+function session() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY));
+    return s && s.exp > Date.now() / 1000 + 60 ? s : null;
+  } catch { return null; }
+}
+
+async function api(sti, opts = {}) {
+  const s = session();
+  if (!s) { visLogin(); throw new Error('Du er logget ud.'); }
+  const r = await fetch(API + sti, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s.token } });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { localStorage.removeItem(SESSION_KEY); visLogin(); throw new Error('Du er logget ud.'); }
+  if (!r.ok) throw new Error(d.fejl || 'Noget gik galt.');
+  return d;
+}
+
+function visFormular() {
+  const s = session();
+  $('#brugerNavn').textContent = 'Logget ind som ' + s.navn;
+  $('#login').classList.add('skjult');
+  $('#kvittering').classList.add('skjult');
+  $('#formular').classList.remove('skjult');
+  if (!startet) { startet = true; start(); }
+}
+
+function visLogin() {
+  $('#formular').classList.add('skjult');
+  $('#kvittering').classList.add('skjult');
+  $('#login').classList.remove('skjult');
+  if (googleKlar) initGoogle();
+}
+
+function initGoogle() {
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: onGoogle,
+    auto_select: true,          // logger selv ind, hvis man har gjort det før
+    hd: 'best-one.dk',
+    use_fedcm_for_prompt: true,
+  });
+  google.accounts.id.renderButton($('#gBtn'), { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: 'da' });
+  google.accounts.id.prompt();
+}
+
+async function onGoogle(svar) {
+  $('#loginFejl').textContent = '';
+  try {
+    const r = await fetch(API + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential: svar.credential }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.fejl || 'Login mislykkedes.');
+    localStorage.setItem(SESSION_KEY, JSON.stringify(d));
+    visFormular();
+  } catch (e) {
+    $('#loginFejl').textContent = e.message;
+  }
+}
+
+$('#logud').onclick = () => {
+  localStorage.removeItem(SESSION_KEY);
+  if (googleKlar) google.accounts.id.disableAutoSelect();
+  visLogin();
+};
+
+window.onGoogleLibraryLoad = () => {
+  googleKlar = true;
+  if (!session()) initGoogle();
+};
+
+session() ? visFormular() : visLogin();
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
