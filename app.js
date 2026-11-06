@@ -185,7 +185,7 @@ function udfyldNord(nyKunde) {
 
 function opdaterNavn() {
   const p = $('#navnPreview');
-  let e = $('#emne').value.trim().replace(/^\s*(haster|fak)\s*[:\-]?\s*/i, '');
+  let e = $('#emne').value.trim().replace(/^\s*(haster|fak)\b\s*[:\-]?\s*/i, '');
   if (e && S.type === 'haster') e = 'HASTER: ' + e;
   if (e && S.type === 'fak') e = 'FAK: ' + e;
   if (e && e !== $('#emne').value.trim()) { p.innerHTML = `Opgaven hedder <b>${esc(e)}</b>`; p.classList.remove('skjult'); }
@@ -212,9 +212,9 @@ segment($('#type'), (v) => {
 });
 segment($('#svarTil'), (v) => {
   S.svar = v;
+  $('#svarGruppe').classList.toggle('skjult', v === 'ingen');
   $('#kontaktBlok').classList.toggle('skjult', v === 'nord' || v === 'ingen');
   $('#nordBlok').classList.toggle('skjult', v === 'kunden' || v === 'ingen');
-  $('#ccFelt').classList.toggle('skjult', v === 'ingen');
   if ((v === 'kunden' || v === 'kundenNord') && S.kunde && !$('#kNavn').value) udfyldKontakt();
   if (v === 'nord' || v === 'kundenNord') udfyldNord(false);
 });
@@ -235,13 +235,21 @@ async function hentKunder(frisk) {
 let nordVaelger, ccVaelger;
 async function start() {
   hentKunder(false);
+  lavPersonVaelgere(); // klar med det samme, også før medarbejderne er hentet
   try { FOLK = await api('/api/medarbejdere'); } catch { FOLK = []; }
+  lavPersonVaelgere();
+  if (S.kunde) { udfyldNord(true); udfyldCc(); } // hvis kunden blev valgt, før listen var klar
+}
+function lavPersonVaelgere() {
+  const nord = S.nord, cc = S.cc;
   nordVaelger = personVaelger($('#nord'), { flere: false, placeholder: 'Vælg kollega', onChange: (id) => {
     S.nord = id;
     S.nordAuto = !!(id && S.kunde && S.kunde.manager === id);
     $('#nordKilde').classList.toggle('skjult', !(id && S.kunde && S.kunde.manager === id));
   }});
   ccVaelger = personVaelger($('#cc'), { flere: true, placeholder: 'Tilføj kollega', onChange: (ids) => (S.cc = ids) });
+  if (nord) nordVaelger.saet(nord);
+  if (cc && cc.length) ccVaelger.saet(cc);
 }
 // ---------- Opret ----------
 $('#opret').addEventListener('click', async () => {
@@ -285,19 +293,15 @@ function visKvittering(d) {
   k.innerHTML = `
     ${$('.logo').outerHTML}
     <h1>Supportsagen er oprettet</h1>
-    <p class="intro">Send ID'et videre til kunden eller kollegaen, hvis det er nødvendigt.</p>
     <div class="billet">
       <div class="navn">${esc(d.navn)}</div>
       <div class="id">#${esc(d.id)}</div>
       <div class="knapper"><button type="button" id="kopier">Kopiér ID</button><a href="${esc(d.url)}" target="_blank" rel="noopener">Åbn i ClickUp</a></div>
+      <div class="deadline"><b>Deadline:</b> ${esc(d.deadline)}${d.type === 'haster' ? ' (haster)' : ''}</div>
     </div>
-    <ul class="fakta">
-      <li><b>Deadline:</b> ${esc(d.deadline)}${d.type === 'haster' ? ' (haster)' : ''}</li>
-      ${d.kunde ? `<li><b>Linket til:</b> <a href="${esc(d.kunde.url)}" target="_blank" rel="noopener">${esc(d.kunde.navn)}</a>${d.kommentar ? ', og der er skrevet en kommentar på kundens opgave' : ''}</li>${d.kommentarFejl ? `<li class="obs">Kommentaren på kundens opgave kunne ikke skrives. Sagen er oprettet. (Fejlkode: ${d.kommentarFejl})</li>` : ''}`
-                : `<li class="obs">Sagen er ikke linket til en kunde. Link den manuelt i ClickUp.</li>`}
-      ${d.andre?.length ? `<li class="obs">Kunden har ${d.andre.length} anden åben supportsag${d.andre.length > 1 ? 'er' : ''}: ${d.andre.map((a) => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.navn)}</a>`).join(', ')}</li>` : ''}
-    </ul>
-    <button class="knap" type="button" id="nySag">Opret en ny supportsag</button>`;
+    ${!d.kunde ? `<p class="obs">Sagen er ikke linket til en kunde. Link den manuelt i ClickUp.</p>` : ''}
+    ${d.kommentarFejl ? `<p class="obs">Kommentaren på kundens opgave kunne ikke skrives. Sagen er oprettet. (Fejlkode: ${d.kommentarFejl})</p>` : ''}
+    <button class="link ny-sag" type="button" id="nySag">Opret en ny supportsag</button>`;
   $('#formular').classList.add('skjult'); k.classList.remove('skjult');
   $('#kopier').onclick = async (e) => { try { await navigator.clipboard.writeText('#' + d.id); e.target.textContent = 'Kopieret'; } catch {} };
   $('#nySag').onclick = nulstilAlt;
@@ -310,7 +314,7 @@ function nulstilAlt() {
   document.querySelectorAll('#svarTil button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
   S.type = 'normal'; S.svar = null;
   $('#deadlineTekst').textContent = 'Deadline om 5 arbejdsdage.';
-  $('#kontaktBlok').classList.add('skjult'); $('#nordBlok').classList.add('skjult'); $('#ccFelt').classList.remove('skjult');
+  $('#svarGruppe').classList.add('skjult'); $('#kontaktBlok').classList.add('skjult'); $('#nordBlok').classList.add('skjult');
   nordVaelger.saet(null); ccVaelger.saet([]);
   nulstilKunde();
   $('#kvittering').classList.add('skjult'); $('#formular').classList.remove('skjult');
