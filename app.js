@@ -257,7 +257,7 @@ $('#opret').addEventListener('click', async () => {
   const tjek = [
     [!S.kunde && !(S.manuel && $('#manuelUrl').value.trim()), 'Vælg en kunde, eller skriv hjemmesiden hvis kunden ikke er på listen.'],
     [!$('#emne').value.trim(), 'Skriv et emne.'],
-    [!$('#henvendelse').value.trim(), 'Beskriv hvad opgaven handler om.'],
+    [!henvendelseMarkdown(), 'Beskriv hvad opgaven handler om.'],
     [!S.svar, 'Vælg hvem der skal have svar.'],
     [['kunden', 'kundenNord'].includes(S.svar) && !$('#kNavn').value.trim(), 'Skriv kundens navn.'],
     [['kunden', 'kundenNord'].includes(S.svar) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($('#kEmail').value.trim()), 'Skriv en gyldig e-mail på kunden.'],
@@ -274,7 +274,7 @@ $('#opret').addEventListener('click', async () => {
         hjemmeside: S.manuel ? $('#manuelUrl').value.trim() : null,
         type: S.type,
         emne: $('#emne').value,
-        henvendelse: $('#henvendelse').value,
+        henvendelse: henvendelseMarkdown(),
         materialer: $('#materialer').value.trim(),
         svarTil: S.svar,
         kontakt: { navn: $('#kNavn').value, email: $('#kEmail').value, telefon: $('#kTlf').value },
@@ -310,7 +310,8 @@ function visKvittering(d) {
 }
 
 function nulstilAlt() {
-  ['#emne', '#henvendelse', '#materialer', '#kNavn', '#kEmail', '#kTlf', '#manuelUrl'].forEach((s) => ($(s).value = ''));
+  ['#emne', '#materialer', '#kNavn', '#kEmail', '#kTlf', '#manuelUrl'].forEach((s) => ($(s).value = ''));
+  rydEditor();
   document.querySelectorAll('#type button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === 'normal'));
   document.querySelectorAll('#svarTil button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
   S.type = 'normal'; S.svar = null;
@@ -320,6 +321,122 @@ function nulstilAlt() {
   nulstilKunde();
   $('#kvittering').classList.add('skjult'); $('#formular').classList.remove('skjult');
 }
+// ---------- Formatering i "Hvad handler opgaven om?" ----------
+// Feltet viser teksten formateret (som i Google Docs). Ved oprettelse laves den om til
+// markdown, som ClickUp viser med de samme overskrifter, fed, kursiv, lister og links.
+const editor = $('#henvendelse');
+
+function tilMarkdown(rod) {
+  const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/([*_`\\])/g, '\\$1');
+  function inline(node) {
+    let ud = '';
+    node.childNodes.forEach((n) => {
+      if (n.nodeType === 3) { ud += esc(n.textContent); return; }
+      if (n.nodeType !== 1) return;
+      const tag = n.tagName.toLowerCase();
+      const indre = inline(n);
+      if (tag === 'br') ud += '\n';
+      else if ((tag === 'b' || tag === 'strong') && indre.trim()) ud += `**${indre}**`;
+      else if ((tag === 'i' || tag === 'em') && indre.trim()) ud += `*${indre}*`;
+      else if (tag === 'a' && n.getAttribute('href')) ud += `[${indre || n.getAttribute('href')}](${n.getAttribute('href')})`;
+      else if (['div', 'p', 'h1', 'h2', 'ul', 'ol'].includes(tag)) ud += '\n' + blok(n).trim() + '\n';
+      else ud += indre;
+    });
+    return ud;
+  }
+  function blok(node) {
+    const dele = [];
+    let loes = '';
+    const toemLoes = () => { if (loes.trim()) dele.push(loes.trim()); loes = ''; };
+    node.childNodes.forEach((n) => {
+      const tag = n.nodeType === 1 ? n.tagName.toLowerCase() : '';
+      if (tag === 'h1' || tag === 'h2') { toemLoes(); const t = inline(n).trim(); if (t) dele.push((tag === 'h1' ? '# ' : '## ') + t.replace(/\n+/g, ' ')); }
+      else if (tag === 'ul' || tag === 'ol') {
+        toemLoes();
+        const punkter = [...n.children].filter((li) => li.tagName === 'LI')
+          .map((li, i) => (tag === 'ol' ? `${i + 1}. ` : '- ') + inline(li).trim().replace(/\n+/g, ' '))
+          .filter((l) => l.replace(/^(\d+\.|-)\s/, '').trim());
+        if (punkter.length) dele.push(punkter.join('\n'));
+      }
+      else if (tag === 'div' || tag === 'p') { toemLoes(); const t = blok(n).trim(); if (t) dele.push(t); }
+      else loes += n.nodeType === 3 ? esc(n.textContent) : inline({ childNodes: [n] });
+    });
+    toemLoes();
+    return dele.join('\n\n');
+  }
+  return blok(rod).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+const henvendelseMarkdown = () => tilMarkdown(editor);
+function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); }
+
+(function () {
+  try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, false); } catch {}
+  const stil = $('#tekststil');
+  const vaerk = document.querySelector('.vaerktoej');
+  const kmd = (c, v) => { editor.focus(); document.execCommand(c, false, v); opdater(); };
+
+  function opdater() {
+    editor.classList.toggle('tom', !editor.textContent.trim() && !editor.querySelector('li,img'));
+    let blokTag = '';
+    try { blokTag = String(document.queryCommandValue('formatBlock') || '').toLowerCase(); } catch {}
+    stil.value = blokTag === 'h1' ? '1' : blokTag === 'h2' ? '2' : '0';
+    const tilstand = { fed: 'bold', kursiv: 'italic', punkt: 'insertUnorderedList', tal: 'insertOrderedList' };
+    vaerk.querySelectorAll('[data-fmt]').forEach((b) => {
+      const k = tilstand[b.dataset.fmt];
+      let aktiv = false;
+      try { aktiv = k ? document.queryCommandState(k) : false; } catch {}
+      b.setAttribute('aria-pressed', aktiv ? 'true' : 'false');
+    });
+  }
+
+  function link() {
+    const sel = window.getSelection();
+    const gemt = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    const valgt = sel.toString();
+    let url = window.prompt('Indsæt link', 'https://');
+    if (!url || url === 'https://') return editor.focus();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    editor.focus();
+    if (gemt) { sel.removeAllRanges(); sel.addRange(gemt); }
+    if (valgt) document.execCommand('createLink', false, url);
+    else document.execCommand('insertHTML', false, `<a href="${esc(url)}">${esc(url.replace(/^https?:\/\//, ''))}</a>&nbsp;`);
+    opdater();
+  }
+
+  const handling = {
+    fed: () => kmd('bold'),
+    kursiv: () => kmd('italic'),
+    punkt: () => kmd('insertUnorderedList'),
+    tal: () => kmd('insertOrderedList'),
+    link,
+  };
+  vaerk.addEventListener('mousedown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
+  vaerk.addEventListener('click', (e) => { const b = e.target.closest('[data-fmt]'); if (b) handling[b.dataset.fmt](); });
+  stil.addEventListener('change', () => kmd('formatBlock', stil.value === '1' ? 'h1' : stil.value === '2' ? 'h2' : 'p'));
+
+  editor.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    const t = e.key.toLowerCase();
+    if (mod && t === 'k') { e.preventDefault(); link(); }
+    if (mod && t === 'u') e.preventDefault(); // understregning kan ClickUp ikke vise
+    // Enter efter en overskrift giver almindelig brødtekst på næste linje
+    if (e.key === 'Enter' && !e.shiftKey) {
+      let tag = '';
+      try { tag = String(document.queryCommandValue('formatBlock') || '').toLowerCase(); } catch {}
+      if (tag === 'h1' || tag === 'h2') setTimeout(() => { document.execCommand('formatBlock', false, 'p'); opdater(); }, 0);
+    }
+  });
+  // Indsat tekst bliver altid ren tekst, så formatering fra andre programmer ikke roder
+  editor.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const tekst = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, tekst);
+  });
+  ['input', 'keyup', 'mouseup', 'focus'].forEach((h) => editor.addEventListener(h, opdater));
+  document.addEventListener('selectionchange', () => { if (document.activeElement === editor) opdater(); });
+})();
+
 // ---------- Baggrundsvideo ----------
 (function () {
   const v = $('#bgVideo');
