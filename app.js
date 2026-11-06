@@ -97,14 +97,37 @@ const kundeCombo = combo({
   tom: () => `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button> eller <button type="button" data-handl="manuel">opret uden kunde</button>.`,
 });
 
+// Produkter som små farvede mærker, samme farver som i ClickUp
+function produktMaerker(liste) {
+  if (!liste || !liste.length) return '';
+  const tekstfarve = (hex) => {
+    const h = String(hex).replace('#', '');
+    const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(f.slice(i, i + 2), 16) / 255);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#1c2733' : '#ffffff';
+  };
+  return `<span class="produkter">${liste.map((p) => {
+    const farve = /^#[0-9a-f]{3,6}$/i.test(p.farve) ? p.farve : '#e9e9e9';
+    return `<span class="produkt" data-farve="${farve}" data-tekst="${tekstfarve(farve)}">${esc(p.navn)}</span>`;
+  }).join('')}</span>`;
+}
+// Farverne sættes via JavaScript ud fra data-attributterne
+function farvMaerker(rod) {
+  rod.querySelectorAll('.produkt').forEach((el) => {
+    el.style.background = el.dataset.farve;
+    el.style.color = el.dataset.tekst;
+  });
+}
+
 function vaelgKunde(k) {
   S.kunde = k; S.manuel = false;
   $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.add('skjult');
   const el = $('#kundeValgt');
   el.classList.remove('skjult');
-  el.innerHTML = `<div class="kunde"><span><b>${esc(k.navn)}</b><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>
+  el.innerHTML = `<div class="kunde"><span><b>${esc(k.navn)}</b><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span>${produktMaerker(k.produkter)}</span>
     <span class="handl"><a class="link" href="${esc(k.url)}" target="_blank" rel="noopener">Åbn i ClickUp <svg class="ikon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M9 2h5v5M14 2L7 9M12 9v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="sr">(åbner i ny fane)</span></a><button class="link" type="button" id="skiftKunde">Vælg ny kunde</button></span></div>
     ${LUKKET.test(k.status) ? `<p class="advarsel">Kunden har status "${esc(k.status)}". Tjek at sagen er rigtig.</p>` : ''}`;
+  farvMaerker(el);
   $('#skiftKunde').onclick = nulstilKunde;
   udfyldKontakt(); udfyldNord(true); udfyldCc(); opdaterNavn();
 }
@@ -161,8 +184,11 @@ function udfyldNord(nyKunde) {
 }
 
 function opdaterNavn() {
-  const e = $('#emne').value.trim(), p = $('#navnPreview');
-  if (S.kunde && e) { p.innerHTML = `Opgaven hedder <b>${esc(S.kunde.navn)} | ${esc(e)}</b>`; p.classList.remove('skjult'); }
+  const p = $('#navnPreview');
+  let e = $('#emne').value.trim().replace(/^\s*(haster|fak)\s*[:\-]?\s*/i, '');
+  if (e && S.type === 'haster') e = 'HASTER: ' + e;
+  if (e && S.type === 'fak') e = 'FAK: ' + e;
+  if (e && e !== $('#emne').value.trim()) { p.innerHTML = `Opgaven hedder <b>${esc(e)}</b>`; p.classList.remove('skjult'); }
   else p.classList.add('skjult');
 }
 $('#emne').addEventListener('input', opdaterNavn);
@@ -179,9 +205,10 @@ segment($('#type'), (v) => {
   S.type = v;
   $('#deadlineTekst').textContent = {
     normal: 'Deadline om 5 arbejdsdage.',
-    haster: 'Deadline om 2 arbejdsdage og får øget prioritet.',
-    fak: 'Deadline senest fredag i indeværende uge.',
+    haster: 'Deadline om 2 arbejdsdage og får prioritet Urgent.',
+    fak: 'Deadline senest fredag i indeværende uge og får prioritet Urgent.',
   }[v];
+  opdaterNavn();
 });
 segment($('#svarTil'), (v) => {
   S.svar = v;
@@ -302,9 +329,9 @@ function nulstilAlt() {
   }));
   // Blåt overlay og skygge først, når videoen faktisk kører
   v.addEventListener('playing', () => document.body.classList.add('har-video'), { once: true });
-  v.preload = 'auto';
-  v.load();
-  v.play().catch(() => {});
+  // Videoen hentes først, når resten af siden er klar, så den ikke forsinker formularen
+  const startVideo = () => { v.preload = 'auto'; v.load(); v.play().catch(() => {}); };
+  document.readyState === 'complete' ? startVideo() : window.addEventListener('load', startVideo, { once: true });
   // Pause når fanen ikke er synlig, så den ikke bruger strøm i baggrunden
   document.addEventListener('visibilitychange', () => (document.hidden ? v.pause() : v.play().catch(() => {})));
 })();
@@ -357,7 +384,10 @@ async function api(sti, opts = {}) {
 
 function visFormular() {
   const s = session();
-  $('#brugerNavn').textContent = 'Logget ind som ' + s.navn;
+  const initialer = s.navn.split(/\s+/).map((d) => d[0]).slice(0, 2).join('').toUpperCase();
+  $('#brugerNavn').innerHTML = `<span class="avatar mig">${s.billede ? `<img src="${esc(s.billede)}" alt="" referrerpolicy="no-referrer">` : esc(initialer)}</span>Logget ind som ${esc(s.navn)}`;
+  const img = $('#brugerNavn img');
+  if (img) img.onerror = () => { img.parentElement.textContent = initialer; };
   $('#login').classList.add('skjult');
   $('#kvittering').classList.add('skjult');
   $('#formular').classList.remove('skjult');
