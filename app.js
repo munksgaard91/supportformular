@@ -257,6 +257,7 @@ $('#opret').addEventListener('click', async () => {
   const tjek = [
     [!S.kunde && !(S.manuel && $('#manuelUrl').value.trim()), 'Vælg en kunde, eller skriv hjemmesiden hvis kunden ikke er på listen.'],
     [!$('#emne').value.trim(), 'Skriv et emne.'],
+    [!$('#henvendelse').value.trim(), 'Beskriv hvad opgaven handler om.'],
     [!S.svar, 'Vælg hvem der skal have svar.'],
     [['kunden', 'kundenNord'].includes(S.svar) && !$('#kNavn').value.trim(), 'Skriv kundens navn.'],
     [['kunden', 'kundenNord'].includes(S.svar) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($('#kEmail').value.trim()), 'Skriv en gyldig e-mail på kunden.'],
