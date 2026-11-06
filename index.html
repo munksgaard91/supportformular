@@ -17,7 +17,7 @@
   --r:10px;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:Montserrat,system-ui,sans-serif;background:var(--bund);color:var(--tekst);font-size:15px;line-height:1.5}
+body{margin:0;font-family:Montserrat,system-ui,sans-serif;background:var(--blaa);color:var(--tekst);font-size:15px;line-height:1.5}
 main{margin:0 auto;max-width:880px;padding:5vh 16px 40px;box-sizing:border-box}
 .logo{display:block;height:48px;width:auto;margin:0 auto 20px}
 .kort{background:var(--flade);border-radius:16px;padding:36px 40px;border:1px solid var(--linje)}
@@ -74,6 +74,10 @@ input:focus,textarea:focus,button:focus-visible,.seg button:focus-visible{outlin
 .forhaand{font-size:13px;color:var(--daemp);margin-top:6px}
 .forhaand b{color:var(--tekst);font-weight:600}
 .blok{border-left:3px solid var(--blaa-lys);padding-left:16px;margin:0 0 22px}
+.blok > :last-child, .blok > .felt:last-child{margin-bottom:0}
+#kontaktBlok .felt:last-of-type{margin-bottom:0}
+#kontaktKilde{margin:6px 0 22px}
+#kontaktBlok:not(:has(#kontaktKilde:not(.skjult))) .felt:last-of-type{margin-bottom:22px}
 .skjult{display:none !important}
 
 .knap{width:100%;font:inherit;font-weight:600;font-size:16px;padding:14px;border-radius:var(--r);border:0;background:var(--blaa);color:#fff;cursor:pointer}
@@ -86,7 +90,7 @@ input:focus,textarea:focus,button:focus-visible,.seg button:focus-visible{outlin
 .bg-video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:saturate(.6) blur(2px);transform:scale(1.03)}
 .bg-slor{position:fixed;inset:0;z-index:-1;background:rgba(34,85,129,.86);display:none}
 body.har-video .bg-slor{display:block}
-body.har-video .kort{border-color:transparent;box-shadow:0 24px 64px rgba(8,24,42,.35),0 4px 14px rgba(8,24,42,.18)}
+.kort{border-color:transparent;box-shadow:0 24px 64px rgba(8,24,42,.35),0 4px 14px rgba(8,24,42,.18)}
 
 /* Login */
 .login{text-align:center;padding:48px 40px}
@@ -105,9 +109,15 @@ body.har-video .kort{border-color:transparent;box-shadow:0 24px 64px rgba(8,24,4
 .billet .id{font-size:34px;font-weight:700;letter-spacing:.04em;color:var(--blaa);font-variant-numeric:tabular-nums}
 .billet .knapper{display:flex;gap:8px;justify-content:center;margin-top:12px}
 .billet .knapper button,.billet .knapper a{font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border-radius:999px;border:1px solid var(--blaa);background:#fff;color:var(--blaa);text-decoration:none;cursor:pointer}
+.billet .deadline{margin-top:14px;font-size:14px;color:var(--daemp)}
+.billet .deadline b{color:var(--tekst)}
+.ny-sag{display:inline-block;margin-top:4px;font-size:14px;color:var(--daemp)}
+.ny-sag:hover{color:var(--blaa)}
+.kvit .obs{color:var(--haster);font-size:14px;max-width:420px;margin:0 auto 16px}
 .fakta{text-align:left;max-width:420px;margin:0 auto 24px;padding:0;list-style:none;font-size:14px}
 .fakta li{padding:8px 0;border-bottom:1px solid var(--linje)}
 .fakta li.obs{color:var(--haster)}
+.fakta a{color:var(--blaa);font-weight:600}
 @media (prefers-reduced-motion:no-preference){.kvit .billet{animation:ind .35s ease-out}}
 @keyframes ind{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
 </style>
@@ -180,22 +190,26 @@ body.har-video .kort{border-color:transparent;box-shadow:0 24px 64px rgba(8,24,4
     </div>
   </div>
 
-  <div class="blok skjult" id="kontaktBlok">
-    <div class="raekke">
-      <div class="felt"><label for="kNavn">Kundens navn <span class="krav">*</span></label><input type="text" id="kNavn"></div>
-      <div class="felt"><label for="kTlf">Telefon</label><input type="tel" id="kTlf" placeholder="12 34 56 78"></div>
+  <!-- Alt under "Svar til" samlet i én blok, så det flugter -->
+  <div class="blok skjult" id="svarGruppe">
+    <div class="skjult" id="kontaktBlok">
+      <div class="raekke">
+        <div class="felt"><label for="kNavn">Kundens navn <span class="krav">*</span></label><input type="text" id="kNavn"></div>
+        <div class="felt"><label for="kTlf">Telefon</label><input type="tel" id="kTlf" placeholder="12 34 56 78"></div>
+      </div>
+      <div class="felt"><label for="kEmail">E-mail på kunden <span class="krav">*</span></label><input type="email" id="kEmail"></div>
+      <p class="forhaand skjult" id="kontaktKilde">Hentet fra kundekortet. Ret hvis det er en anden person.</p>
     </div>
-    <div class="felt"><label for="kEmail">E-mail på kunden <span class="krav">*</span></label><input type="email" id="kEmail"></div>
-    <p class="forhaand skjult" id="kontaktKilde">Hentet fra kundekortet. Ret hvis det er en anden person.</p>
-  </div>
 
-  <div class="blok skjult" id="nordBlok">
-    <div class="felt"><span class="lbl">Hvem er nørd? <span class="krav">*</span></span><div id="nord"></div><p class="forhaand skjult" id="nordKilde">Manager på kundekortet. Ret hvis det er en anden.</p></div>
-  </div>
+    <div class="felt skjult" id="nordBlok">
+      <span class="lbl">Hvem er nørd? <span class="krav">*</span></span><div id="nord"></div>
+      <p class="forhaand skjult" id="nordKilde">Manager på kundekortet. Ret hvis det er en anden.</p>
+    </div>
 
-  <div class="felt" id="ccFelt">
-    <span class="lbl">CC på mailsvar</span>
-    <div id="cc"></div>
+    <div class="felt" id="ccFelt">
+      <span class="lbl">CC på mailsvar</span>
+      <div id="cc"></div>
+    </div>
   </div>
 
   <button class="knap" id="opret" type="button">Opret supportsag</button>
