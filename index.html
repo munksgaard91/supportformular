@@ -78,6 +78,12 @@ input:focus,textarea:focus,button:focus-visible,.seg button:focus-visible{outlin
 .vaerktoej select{font:inherit;font-size:13px;font-weight:600;color:var(--tekst);height:30px;padding:0 26px 0 8px;border:0;border-radius:6px;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235d6b7a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center;appearance:none;-webkit-appearance:none;cursor:pointer}
 .vaerktoej select:hover{background-color:var(--blaa-lys)}
 .vaerktoej .skille{width:1px;height:18px;background:var(--linje);margin:0 4px}
+.ekstern-raekke{display:flex;gap:8px;margin-bottom:8px}
+.ekstern-raekke input{flex:1}
+.ekstern-raekke .fjern{flex:none;width:40px;border:1px solid var(--linje);border-radius:var(--r);background:#fff;color:var(--daemp);font-size:18px;cursor:pointer}
+.ekstern-raekke .fjern:hover{color:var(--fejl);border-color:var(--fejl)}
+.tilfoej{font:inherit;font-size:13px;font-weight:600;color:var(--blaa);background:none;border:1px dashed var(--linje);border-radius:var(--r);padding:7px 12px;cursor:pointer}
+.tilfoej:hover{border-color:var(--blaa);background:var(--blaa-lys)}
 .produkter{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .produkt{font-size:11px;font-weight:600;line-height:1;padding:4px 7px;border-radius:4px;background:#e9e9e9;color:#1c2733}
 .advarsel{margin-top:8px;font-size:13px;color:var(--haster)}
@@ -243,6 +249,12 @@ body.har-video .bg-slor{display:block}
     <div class="felt" id="ccFelt">
       <span class="lbl">CC på mailsvar</span>
       <div id="cc"></div>
+    </div>
+
+    <div class="felt" id="eksternFelt">
+      <span class="lbl">CC ekstern</span>
+      <div id="eksterne"></div>
+      <button type="button" class="tilfoej" id="tilfoejEkstern"><span aria-hidden="true">+</span> Tilføj e-mail</button>
     </div>
   </div>
 
