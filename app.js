@@ -251,6 +251,27 @@ function lavPersonVaelgere() {
   if (nord) nordVaelger.saet(nord);
   if (cc && cc.length) ccVaelger.saet(cc);
 }
+// ---------- CC ekstern ----------
+// Eksterne e-mails, der skal have kopi. De skrives som en kommentar på supportsagen.
+function nyEksternRaekke(vaerdi = '') {
+  const raekke = document.createElement('div');
+  raekke.className = 'ekstern-raekke';
+  raekke.innerHTML = `<input type="email" placeholder="navn@firma.dk" autocomplete="off"><button type="button" class="fjern" aria-label="Fjern e-mail">×</button>`;
+  raekke.querySelector('input').value = vaerdi;
+  raekke.querySelector('.fjern').onclick = () => {
+    if ($('#eksterne').children.length > 1) raekke.remove();
+    else raekke.querySelector('input').value = '';
+  };
+  $('#eksterne').append(raekke);
+  return raekke.querySelector('input');
+}
+function eksterneMails() {
+  return [...document.querySelectorAll('#eksterne input')].map((i) => i.value.trim()).filter(Boolean);
+}
+function nulstilEksterne() { $('#eksterne').innerHTML = ''; nyEksternRaekke(); }
+$('#tilfoejEkstern').onclick = () => nyEksternRaekke().focus();
+nulstilEksterne();
+
 // ---------- Opret ----------
 $('#opret').addEventListener('click', async () => {
   const fejl = $('#fejl'); fejl.textContent = '';
@@ -262,6 +283,7 @@ $('#opret').addEventListener('click', async () => {
     [['kunden', 'kundenNord'].includes(S.svar) && !$('#kNavn').value.trim(), 'Skriv kundens navn.'],
     [['kunden', 'kundenNord'].includes(S.svar) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($('#kEmail').value.trim()), 'Skriv en gyldig e-mail på kunden.'],
     [['nord', 'kundenNord'].includes(S.svar) && !S.nord, 'Vælg hvem nørden er.'],
+    [S.svar !== 'ingen' && eksterneMails().some((m) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)), `Tjek e-mailen under CC ekstern: ${eksterneMails().find((m) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) || ''}`],
   ].find(([b]) => b);
   if (tjek) { fejl.textContent = tjek[1]; return; }
 
@@ -279,6 +301,7 @@ $('#opret').addEventListener('click', async () => {
         svarTil: S.svar,
         kontakt: { navn: $('#kNavn').value, email: $('#kEmail').value, telefon: $('#kTlf').value },
         nord: S.nord, cc: S.cc,
+        eksterne: S.svar === 'ingen' ? [] : eksterneMails(),
       }),
     });
     visKvittering(d);
@@ -301,6 +324,7 @@ function visKvittering(d) {
       <div class="deadline"><b>Deadline:</b> ${esc(d.deadline)}${d.type === 'haster' ? ' (haster)' : ''}</div>
     </div>
     ${!d.kunde ? `<p class="obs">Sagen er ikke linket til en kunde. Link den manuelt i ClickUp.</p>` : ''}
+    ${d.eksternFejl ? `<p class="obs">Kommentaren med eksterne CC kunne ikke skrives på sagen. Skriv dem på i hånden. (Fejlkode: ${d.eksternFejl})</p>` : ''}
     ${d.kommentarFejl ? `<p class="obs">Kommentaren på kundens opgave kunne ikke skrives. Sagen er oprettet. (Fejlkode: ${d.kommentarFejl})</p>` : ''}
     <button class="link ny-sag" type="button" id="nySag">Opret en ny supportsag</button>`;
   $('#formular').classList.add('skjult'); k.classList.remove('skjult');
@@ -312,6 +336,7 @@ function visKvittering(d) {
 function nulstilAlt() {
   ['#emne', '#materialer', '#kNavn', '#kEmail', '#kTlf', '#manuelUrl'].forEach((s) => ($(s).value = ''));
   rydEditor();
+  nulstilEksterne();
   document.querySelectorAll('#type button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === 'normal'));
   document.querySelectorAll('#svarTil button').forEach((b) => b.setAttribute('aria-pressed', 'false'));
   S.type = 'normal'; S.svar = null;
