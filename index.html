@@ -38,6 +38,7 @@ input:focus,textarea:focus,button:focus-visible,.seg button:focus-visible{outlin
 .seg button{font:inherit;font-size:14px;font-weight:500;padding:8px 14px;border-radius:999px;border:1px solid var(--linje);background:#fff;color:var(--tekst);cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--blaa);border-color:var(--blaa);color:#fff}
 .seg button.haster[aria-pressed=true]{background:var(--haster);border-color:var(--haster)}
+.seg button.fak[aria-pressed=true]{background:var(--groen);border-color:var(--groen)}
 
 /* Combobox */
 .combo{position:relative}
@@ -208,7 +209,7 @@ body.har-video .bg-slor{display:block}
     <div class="seg" id="type">
       <button type="button" data-v="normal" aria-pressed="true">Almindelig</button>
       <button type="button" data-v="haster" class="haster" aria-pressed="false">Haster</button>
-      <button type="button" data-v="fak" aria-pressed="false">FAK</button>
+      <button type="button" data-v="fak" class="fak" aria-pressed="false">FAK</button>
     </div>
     <p class="forhaand" id="deadlineTekst">Deadline om 5 arbejdsdage.</p>
   </div>
