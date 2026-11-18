@@ -97,23 +97,23 @@ const kundeCombo = combo({
   tom: () => `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button> eller <button type="button" data-handl="manuel">opret uden kunde</button>.`,
 });
 
-// Produkter som små farvede mærker, samme farver som i ClickUp
+// Farvede mærker (produkter og status) med samme farver som i ClickUp.
+// Teksten bliver mørk på lyse farver og hvid på mørke.
+function farveAttr(hex) {
+  const farve = /^#[0-9a-f]{3,6}$/i.test(hex) ? hex : '#e9e9e9';
+  const h = farve.replace('#', '');
+  const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(f.slice(i, i + 2), 16) / 255);
+  const tekst = 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#1c2733' : '#ffffff';
+  return `data-farve="${farve}" data-tekst="${tekst}"`;
+}
 function produktMaerker(liste) {
   if (!liste || !liste.length) return '';
-  const tekstfarve = (hex) => {
-    const h = String(hex).replace('#', '');
-    const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0');
-    const [r, g, b] = [0, 2, 4].map((i) => parseInt(f.slice(i, i + 2), 16) / 255);
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#1c2733' : '#ffffff';
-  };
-  return `<span class="produkter">${liste.map((p) => {
-    const farve = /^#[0-9a-f]{3,6}$/i.test(p.farve) ? p.farve : '#e9e9e9';
-    return `<span class="produkt" data-farve="${farve}" data-tekst="${tekstfarve(farve)}">${esc(p.navn)}</span>`;
-  }).join('')}</span>`;
+  return `<span class="produkter">${liste.map((p) => `<span class="produkt" ${farveAttr(p.farve)}>${esc(p.navn)}</span>`).join('')}</span>`;
 }
 // Farverne sættes via JavaScript ud fra data-attributterne
 function farvMaerker(rod) {
-  rod.querySelectorAll('.produkt').forEach((el) => {
+  rod.querySelectorAll('[data-farve]').forEach((el) => {
     el.style.background = el.dataset.farve;
     el.style.color = el.dataset.tekst;
   });
@@ -130,15 +130,18 @@ function vaelgKunde(k) {
   farvMaerker(el);
   $('#skiftKunde').onclick = nulstilKunde;
   udfyldKontakt(); udfyldNord(true); udfyldCc(); opdaterNavn();
+  visSager(k);
 }
 function nulstilKunde() {
   S.kunde = null; S.manuel = false;
+  visSager(null);
   $('#kundeValgt').classList.add('skjult'); $('#manuel').classList.add('skjult');
   $('#kundeSoeg').classList.remove('skjult');
   $('#kundeInput').focus(); opdaterNavn();
 }
 function manuelKunde() {
   S.kunde = null; S.manuel = true;
+  visSager(null);
   $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.remove('skjult');
   $('#manuelUrl').focus(); opdaterNavn();
 }
@@ -150,6 +153,52 @@ $('#kundeListe').addEventListener('click', (e) => {
   if (h.dataset.handl === 'opdater') hentKunder(true);
   if (h.dataset.handl === 'manuel') manuelKunde();
 });
+
+// ---------- Igangværende supportsager ----------
+// Vises kun, hvis kunden har åbne sager. Fejler hentningen, vises der bare ingenting.
+let sagerFor = null;
+async function visSager(k) {
+  const boks = $('#sager');
+  boks.classList.add('skjult');
+  boks.open = false;
+  sagerFor = k ? k.id : null;
+  if (!k) return;
+  let sager;
+  try { sager = await api('/api/sager?kunde=' + encodeURIComponent(k.id)); } catch { return; }
+  if (sagerFor !== k.id || !sager.length) return; // kunden er skiftet i mellemtiden, eller ingen sager
+  boks.querySelector('summary').textContent = `Igangværende supportsager (${sager.length})`;
+  boks.querySelector('ul').innerHTML = sager.map((s) => {
+    const a = s.ansvarlig;
+    const folk = a
+      ? `<span class="ansvarlig" title="${esc(a.navn)}">${avatar(a)}<span class="sr">${esc(a.navn)}</span></span>`
+      : '<span class="ansvarlig ingen" title="Ingen ansvarlig">–<span class="sr">Ingen ansvarlig</span></span>';
+    return `<li>
+      ${folk}
+      <a href="${esc(s.url)}" target="_blank" rel="noopener" data-fuld="${esc(s.navn)}">${esc(s.navn)}<span class="sr"> (åbner i ny fane)</span></a>
+      <span class="status" ${farveAttr(s.farve)}>${esc(s.status)}</span>
+    </li>`;
+  }).join('');
+  farvMaerker(boks);
+  boks.querySelectorAll('.ansvarlig img').forEach((img) => {
+    img.onerror = () => { img.parentElement.textContent = img.closest('.ansvarlig').title.split(/\s+/).map((d) => d[0]).slice(0, 2).join('').toUpperCase(); };
+  });
+  boks.classList.remove('skjult');
+}
+
+// Tooltip med hele titlen, kun på de titler der er forkortet med "...".
+// Kan først måles, når listen er foldet ud, og skal måles igen, hvis vinduet ændrer bredde.
+function markerForkortede() {
+  const boks = $('#sager');
+  if (!boks.open) return;
+  boks.querySelectorAll('li').forEach((li) => {
+    const a = li.querySelector('a');
+    const forkortet = a.scrollWidth > a.clientWidth + 1;
+    li.classList.toggle('forkortet', forkortet);
+    if (forkortet) li.dataset.fuld = a.dataset.fuld; else delete li.dataset.fuld;
+  });
+}
+$('#sager').addEventListener('toggle', markerForkortede);
+window.addEventListener('resize', markerForkortede);
 
 function udfyldKontakt() {
   const k = S.kunde;
@@ -352,7 +401,8 @@ function nulstilAlt() {
 const editor = $('#henvendelse');
 
 function tilMarkdown(rod) {
-  const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/([*_`\\])/g, '\\$1');
+  // ~~ escapes kun som par, s\u00e5 en enkelt ~ (fx "ca. ~30") ikke f\u00e5r en backslash foran
+  const esc = (t) => t.replace(/\u00a0/g, ' ').replace(/([*_`\\])/g, '\\$1').replace(/~~/g, '\\~\\~');
   function inline(node) {
     let ud = '';
     node.childNodes.forEach((n) => {
@@ -363,8 +413,9 @@ function tilMarkdown(rod) {
       if (tag === 'br') ud += '\n';
       else if ((tag === 'b' || tag === 'strong') && indre.trim()) ud += `**${indre}**`;
       else if ((tag === 'i' || tag === 'em') && indre.trim()) ud += `*${indre}*`;
+      else if ((tag === 's' || tag === 'strike' || tag === 'del') && indre.trim()) ud += `~~${indre}~~`;
       else if (tag === 'a' && n.getAttribute('href')) ud += `[${indre || n.getAttribute('href')}](${n.getAttribute('href')})`;
-      else if (['div', 'p', 'h1', 'h2', 'ul', 'ol'].includes(tag)) ud += '\n' + blok(n).trim() + '\n';
+      else if (['div', 'p', 'h1', 'h2', 'ul', 'ol', 'blockquote'].includes(tag)) ud += '\n' + blok({ childNodes: [n] }).trim() + '\n';
       else ud += indre;
     });
     return ud;
@@ -384,16 +435,156 @@ function tilMarkdown(rod) {
         if (punkter.length) dele.push(punkter.join('\n'));
       }
       else if (tag === 'div' || tag === 'p') { toemLoes(); const t = blok(n).trim(); if (t) dele.push(t); }
+      // Citat: hver linje får "> " foran. ClickUp viser ikke citater i citater, så de lægges sammen til ét.
+      else if (tag === 'blockquote') {
+        toemLoes();
+        const t = blok(n).trim().split('\n').map((l) => l.replace(/^(>\s?)+/, '')).join('\n');
+        if (t) dele.push(t.split('\n').map((l) => (l.trim() ? '> ' + l : '>')).join('\n'));
+      }
       else loes += n.nodeType === 3 ? esc(n.textContent) : inline({ childNodes: [n] });
     });
     toemLoes();
     return dele.join('\n\n');
   }
-  return blok(rod).replace(/\n{3,}/g, '\n\n').trim();
+  let md = blok(rod).replace(/\n{3,}/g, '\n\n').trim();
+  // Citater lige efter hinanden (browseren laver ét pr. linje) samles til ét citat
+  let foer;
+  do { foer = md; md = md.replace(/^(>.*)\n\n(?=>)/m, '$1\n>\n'); } while (md !== foer);
+  return md;
+}
+
+// ---------- Indsæt fra Gmail ----------
+// Bygger indsat HTML om, så kun det ClickUp kan vise kommer med: afsnit, overskrifter, fed,
+// kursiv, gennemstregning, lister, links og citater. Farver, skrifttyper, understregning,
+// billeder og tabeller bliver til almindelig tekst.
+// Gmails citerede svar (blockquote) og videresendte mails (div.gmail_quote) bliver til citater.
+function renHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html'); // inert: scripts køres ikke, billeder hentes ikke
+  const SKRALD = /^(STYLE|SCRIPT|META|LINK|TITLE|HEAD|IMG|PICTURE|VIDEO|AUDIO|SVG|OBJECT|EMBED|IFRAME|NOSCRIPT|TEMPLATE|BUTTON|INPUT|SELECT|TEXTAREA|HR)$/;
+  const BLOK = /^(P|DIV|SECTION|ARTICLE|HEADER|FOOTER|MAIN|ASIDE|NAV|TABLE|TBODY|THEAD|TFOOT|TR|TD|TH|CAPTION|PRE|ADDRESS|CENTER|DL|DT|DD|FIGURE|FIGCAPTION|FORM|FIELDSET)$/;
+  const ud = document.createElement('div');
+  const aabne = new WeakSet(); // afsnit der stadig kan få mere tekst
+  const format = new WeakMap(); // formatering -> [nøgle, inderste element], så nabotekst med samme formatering samles
+
+  // Det afsnit tekst skal ind i. Lister og overskrifter tager selv teksten.
+  const afsnit = (maal) => {
+    if (/^(LI|H1|H2)$/.test(maal.tagName)) return maal;
+    const sidste = maal.lastChild;
+    if (sidste && aabne.has(sidste)) return sidste;
+    const p = document.createElement('p');
+    aabne.add(p);
+    maal.append(p);
+    return p;
+  };
+  const luk = (maal) => { if (maal.lastChild) aabne.delete(maal.lastChild); };
+
+  function tekst(t, maal, f) {
+    t = t.replace(/[ \t\r\n]+/g, ' ');
+    if (!t) return;
+    const beholder = f.a || afsnit(maal);
+    const noegle = (f.b ? 'b' : '') + (f.i ? 'i' : '') + (f.s ? 's' : '');
+    const sidste = beholder.lastChild;
+    if (sidste && format.has(sidste) && format.get(sidste)[0] === noegle) { format.get(sidste)[1].append(t); return; }
+    if (!noegle) { beholder.append(t); return; }
+    let ydre = null, inderste = null;
+    for (const tag of ['b', 'i', 's']) {
+      if (!f[tag]) continue;
+      const w = document.createElement(tag);
+      if (inderste) inderste.append(w); else ydre = w;
+      inderste = w;
+    }
+    inderste.append(t);
+    format.set(ydre, [noegle, inderste]);
+    beholder.append(ydre);
+  }
+
+  const boern = (el, maal, f) => el.childNodes.forEach((c) => gaa(c, maal, f));
+
+  function gaa(node, maal, fmt) {
+    if (node.nodeType === 3) return tekst(node.data, maal, fmt);
+    if (node.nodeType !== 1) return;
+    const el = node, tag = el.tagName;
+    if (SKRALD.test(tag) || /display\s*:\s*none/i.test(el.getAttribute('style') || '')) return;
+
+    // Formatering fra tags og fra style (Gmail og Google Docs bruger begge dele)
+    const st = el.getAttribute('style') || '';
+    const f = { ...fmt };
+    if (tag === 'B' || tag === 'STRONG' || /font-weight\s*:\s*(bold|[6-9]00)/i.test(st)) f.b = true;
+    if (/font-weight\s*:\s*(normal|[1-5]00)/i.test(st)) f.b = false;
+    if (tag === 'I' || tag === 'EM' || /font-style\s*:\s*italic/i.test(st)) f.i = true;
+    if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL' || /line-through/i.test(st)) f.s = true;
+
+    if (tag === 'BR') {
+      const p = f.a || afsnit(maal);
+      p.append(document.createElement('br'));
+      return;
+    }
+    if (tag === 'A') {
+      const href = (el.getAttribute('href') || '').trim();
+      if (/^(https?:|mailto:)/i.test(href) && !fmt.a) {
+        const a = document.createElement('a');
+        a.href = href;
+        afsnit(maal).append(a);
+        boern(el, maal, { ...f, a });
+        if (!a.textContent.trim()) a.remove();
+        return;
+      }
+      return boern(el, maal, f);
+    }
+    // Citat: Gmails citerede svar og videresendte mails
+    const videresendt = tag === 'DIV' && el.classList.contains('gmail_quote') && !el.querySelector('blockquote');
+    if (tag === 'BLOCKQUOTE' || videresendt) {
+      const bq = document.createElement('blockquote');
+      maal.append(bq);
+      boern(el, bq, { ...f, a: null });
+      if (!bq.textContent.trim()) bq.remove();
+      return;
+    }
+    if (/^H[1-6]$/.test(tag)) {
+      const h = document.createElement(tag === 'H1' ? 'h1' : 'h2');
+      maal.append(h);
+      boern(el, h, { ...f, a: null, b: false });
+      if (!h.textContent.trim()) h.remove();
+      return;
+    }
+    if (tag === 'UL' || tag === 'OL') {
+      const liste = document.createElement(tag.toLowerCase());
+      maal.append(liste);
+      el.childNodes.forEach((c) => {
+        if (c.nodeType === 3 && !c.data.trim()) return;
+        const li = document.createElement('li');
+        liste.append(li);
+        if (c.nodeType === 1 && c.tagName === 'LI') boern(c, li, { ...f, a: null });
+        else gaa(c, li, { ...f, a: null });
+        if (!li.textContent.trim()) li.remove();
+      });
+      if (!liste.children.length) liste.remove();
+      return;
+    }
+    if (BLOK.test(tag) || tag === 'LI') {
+      // Blokke foldes ud til afsnit. Inde i et listepunkt eller en overskrift bliver de til linjeskift.
+      if (/^(LI|H1|H2)$/.test(maal.tagName)) {
+        if (maal.textContent.trim()) maal.append(document.createElement('br'));
+        return boern(el, maal, f);
+      }
+      luk(maal);
+      boern(el, maal, { ...f, a: null });
+      luk(maal);
+      return;
+    }
+    boern(el, maal, f); // span, font, u osv.: kun indholdet
+  }
+
+  boern(doc.body, ud, {});
+  // Tomme afsnit i starten og slutningen fjernes
+  const tom = (n) => n && n.nodeName === 'P' && !n.textContent.trim();
+  while (tom(ud.firstChild)) ud.firstChild.remove();
+  while (tom(ud.lastChild)) ud.lastChild.remove();
+  return ud.innerHTML;
 }
 
 const henvendelseMarkdown = () => tilMarkdown(editor);
-function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); }
+function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); editor.style.height = ''; } // højden nulstilles, hvis feltet er trukket større
 
 (function () {
   try { document.execCommand('defaultParagraphSeparator', false, 'p'); document.execCommand('styleWithCSS', false, false); } catch {}
@@ -406,13 +597,41 @@ function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); }
     let blokTag = '';
     try { blokTag = String(document.queryCommandValue('formatBlock') || '').toLowerCase(); } catch {}
     stil.value = blokTag === 'h1' ? '1' : blokTag === 'h2' ? '2' : '0';
-    const tilstand = { fed: 'bold', kursiv: 'italic', punkt: 'insertUnorderedList', tal: 'insertOrderedList' };
+    const tilstand = { fed: 'bold', kursiv: 'italic', gennem: 'strikeThrough', punkt: 'insertUnorderedList', tal: 'insertOrderedList' };
     vaerk.querySelectorAll('[data-fmt]').forEach((b) => {
       const k = tilstand[b.dataset.fmt];
       let aktiv = false;
       try { aktiv = k ? document.queryCommandState(k) : false; } catch {}
+      if (b.dataset.fmt === 'citat') aktiv = !!citatVedMarkoer();
       b.setAttribute('aria-pressed', aktiv ? 'true' : 'false');
     });
+  }
+
+  // ---------- Citat ----------
+  // Det citat markøren står i (eller null)
+  function citatVedMarkoer() {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return null;
+    let n = sel.anchorNode;
+    if (n && n.nodeType === 3) n = n.parentNode;
+    const bq = n && n.closest ? n.closest('blockquote') : null;
+    return bq && editor.contains(bq) ? bq : null;
+  }
+  // Fjerner citatet, men beholder teksten
+  function fjernCitat(bq) {
+    const harBlokke = [...bq.children].some((c) => /^(P|DIV|H1|H2|UL|OL|BLOCKQUOTE)$/.test(c.tagName));
+    if (!harBlokke) { kmd('formatBlock', 'p'); return; } // citat lavet med knappen: tekst direkte i citatet
+    const sidste = bq.lastChild;
+    bq.replaceWith(...bq.childNodes); // indsat citat (fx fra Gmail): afsnittene flyttes ud
+    const sel = window.getSelection();
+    if (sidste) { sel.selectAllChildren(sidste); sel.collapseToEnd(); }
+    opdater();
+  }
+  function citat() {
+    editor.focus();
+    const bq = citatVedMarkoer();
+    if (bq) fjernCitat(bq);
+    else kmd('formatBlock', 'blockquote');
   }
 
   function link() {
@@ -432,6 +651,8 @@ function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); }
   const handling = {
     fed: () => kmd('bold'),
     kursiv: () => kmd('italic'),
+    gennem: () => kmd('strikeThrough'),
+    citat,
     punkt: () => kmd('insertUnorderedList'),
     tal: () => kmd('insertOrderedList'),
     link,
@@ -445,6 +666,29 @@ function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); }
     const t = e.key.toLowerCase();
     if (mod && t === 'k') { e.preventDefault(); link(); }
     if (mod && t === 'u') e.preventDefault(); // understregning kan ClickUp ikke vise
+    if (mod && e.shiftKey && t === 'x') { e.preventDefault(); kmd('strikeThrough'); }
+    // Enter på en tom linje i et citat afslutter citatet (som i Gmail og Google Docs)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      const bq = citatVedMarkoer();
+      const sel = window.getSelection();
+      if (bq && sel.isCollapsed) {
+        let n = sel.anchorNode;
+        if (n.nodeType === 3) n = n.parentNode;
+        const linje = n.closest('p,div,li,blockquote');
+        if (linje && !linje.textContent.trim() && !linje.closest('li')) {
+          e.preventDefault();
+          if (linje === bq) { kmd('formatBlock', 'p'); return; }
+          const p = document.createElement('p');
+          p.append(document.createElement('br'));
+          linje.remove();
+          bq.after(p);
+          if (!bq.textContent.trim()) bq.remove();
+          sel.selectAllChildren(p); sel.collapseToStart();
+          opdater();
+          return;
+        }
+      }
+    }
     // Enter efter en overskrift giver almindelig brødtekst på næste linje
     if (e.key === 'Enter' && !e.shiftKey) {
       let tag = '';
@@ -452,11 +696,16 @@ function rydEditor() { editor.innerHTML = ''; editor.classList.add('tom'); }
       if (tag === 'h1' || tag === 'h2') setTimeout(() => { document.execCommand('formatBlock', false, 'p'); opdater(); }, 0);
     }
   });
-  // Indsat tekst bliver altid ren tekst, så formatering fra andre programmer ikke roder
+  // Indsæt: formatering fra fx Gmail beholdes, men kun den slags ClickUp kan vise.
+  // Uden HTML på udklipsholderen indsættes ren tekst.
   editor.addEventListener('paste', (e) => {
     e.preventDefault();
-    const tekst = (e.clipboardData || window.clipboardData).getData('text/plain');
-    document.execCommand('insertText', false, tekst);
+    const data = e.clipboardData || window.clipboardData;
+    const html = data.getData('text/html');
+    const ren = html ? renHtml(html) : '';
+    if (ren) document.execCommand('insertHTML', false, ren);
+    else document.execCommand('insertText', false, data.getData('text/plain'));
+    opdater();
   });
   ['input', 'keyup', 'mouseup', 'focus'].forEach((h) => editor.addEventListener(h, opdater));
   document.addEventListener('selectionchange', () => { if (document.activeElement === editor) opdater(); });
