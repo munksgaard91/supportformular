@@ -5,8 +5,8 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').trim();
 
-let KUNDER = [], FOLK = [], OPSTARTER = null, OPSTART_FEJL = '';
-const S = { kunde: null, manuel: false, opstart: false, type: 'normal', svar: null, nord: null, cc: [] };
+let KUNDER = [], FOLK = [];
+const S = { kunde: null, manuel: false, type: 'normal', svar: null, nord: null, cc: [] };
 
 function avatar(p) {
   return `<span class="avatar">${p.billede ? `<img src="${esc(p.billede)}" alt="">` : esc(p.initialer || p.navn.slice(0, 2).toUpperCase())}</span>`;
@@ -75,12 +75,10 @@ function personVaelger(rod, { flere, placeholder, valgt, onChange }) {
 
 // ---------- Kunde ----------
 function soegKunder(q) {
-  // "Min kunde er ikke på listen" skifter til kunderne i opstart
-  const kilde = S.opstart ? OPSTARTER || [] : KUNDER;
   q = norm(q);
-  if (!q) return kilde.slice(0, 8);
+  if (!q) return KUNDER.slice(0, 8);
   const start = [], inde = [];
-  for (const k of kilde) {
+  for (const k of KUNDER) {
     const n = k.navn.toLowerCase();
     const v = k.vis || k.domaene;
     if (n.startsWith(q) || v.startsWith(q) || k.domaene.startsWith(q)) start.push(k);
@@ -94,40 +92,10 @@ const LUKKET = /nedluk|opsag|opsig|lukket/i;
 const kundeCombo = combo({
   input: $('#kundeInput'), liste: $('#kundeListe'),
   hent: soegKunder,
-  render: (k) => `<span><b>${esc(k.navn)}</b><br><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>${S.opstart || LUKKET.test(k.status) ? `<span class="pille">${esc(k.status)}</span>` : ''}`,
+  render: (k) => `<span><b>${esc(k.navn)}</b><br><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>${LUKKET.test(k.status) ? `<span class="pille">${esc(k.status)}</span>` : ''}`,
   vaelg: vaelgKunde,
-  tom: () => S.opstart
-    ? (OPSTARTER ? 'Ingen kunder i opstart matcher.' : OPSTART_FEJL || 'Henter kunder i opstart…')
-    : `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button>.`,
+  tom: () => `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button> eller <button type="button" data-handl="manuel">opret uden kunde</button>.`,
 });
-
-// Kunder i opstart (post-online, færdiggøres, afsluttet), der endnu ikke er på kundelisten.
-// Kun synlige efter "Min kunde er ikke på listen".
-// Den lille linje under kundefeltet skifter mellem de to lister
-function kundePlaceholder() {
-  $('#ikkeListe').innerHTML = S.opstart
-    ? '<button class="link" type="button" data-handl="tilbage">Tilbage til kundelisten</button>'
-    : '<button class="link" type="button" data-handl="opstart">Min kunde er ikke på listen</button>';
-  $('#kundeInput').placeholder = S.opstart
-    ? (OPSTARTER ? `Søg blandt ${OPSTARTER.length} kunder i opstart` : 'Henter kunder i opstart…')
-    : `Søg blandt ${KUNDER.length} kunder`;
-}
-async function visOpstart() {
-  S.opstart = true;
-  $('#kundeInput').value = '';
-  kundePlaceholder(); $('#kundeInput').focus(); kundeCombo.tegn();
-  if (OPSTARTER) return;
-  OPSTART_FEJL = '';
-  try { OPSTARTER = await api('/api/opstarter'); } catch (e) {
-    OPSTART_FEJL = 'Kunderne i opstart kunne ikke hentes.' + (e.kode ? ` (Fejlkode: ${esc(e.kode)})` : '');
-  }
-  if (S.opstart) { kundePlaceholder(); kundeCombo.tegn(); }
-}
-function skjulOpstart() {
-  S.opstart = false;
-  $('#kundeInput').value = '';
-  kundePlaceholder(); $('#kundeInput').focus(); kundeCombo.tegn();
-}
 
 // Farvede mærker (produkter og status) med samme farver som i ClickUp.
 // Teksten bliver mørk på lyse farver og hvid på mørke.
@@ -153,7 +121,7 @@ function farvMaerker(rod) {
 
 function vaelgKunde(k) {
   S.kunde = k; S.manuel = false;
-  $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.add('skjult'); $('#ikkeListe').classList.add('skjult');
+  $('#kundeSoeg').classList.add('skjult'); $('#udenKunde').classList.add('skjult'); $('#manuel').classList.add('skjult');
   const el = $('#kundeValgt');
   el.classList.remove('skjult');
   el.innerHTML = `<div class="kunde"><span><b>${esc(k.navn)}</b><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span>${produktMaerker(k.produkter)}</span>
@@ -165,30 +133,28 @@ function vaelgKunde(k) {
   visSager(k);
 }
 function nulstilKunde() {
-  S.kunde = null; S.manuel = false; S.opstart = false; kundePlaceholder();
+  S.kunde = null; S.manuel = false;
   visSager(null);
   $('#kundeValgt').classList.add('skjult'); $('#manuel').classList.add('skjult');
-  $('#kundeSoeg').classList.remove('skjult'); $('#ikkeListe').classList.remove('skjult');
+  $('#kundeSoeg').classList.remove('skjult'); $('#udenKunde').classList.remove('skjult');
   $('#kundeInput').focus(); opdaterNavn();
 }
 function manuelKunde() {
   S.kunde = null; S.manuel = true;
   visSager(null);
-  $('#kundeSoeg').classList.add('skjult'); $('#ikkeListe').classList.add('skjult'); $('#manuel').classList.remove('skjult');
-  $('#manuelUrl').focus(); opdaterNavn();
+  $('#kundeSoeg').classList.add('skjult'); $('#udenKunde').classList.add('skjult'); $('#manuel').classList.remove('skjult');
+  $('#manuelNavn').focus(); opdaterNavn();
 }
 $('#tilbageSoeg').onclick = nulstilKunde;
-// Knapperne i "Ingen kunder matcher" og linjen under feltet (ingen inline onclick pga. sikkerhedspolitikken)
+// Knapperne i "Ingen kunder matcher" og linjen "Opret uden kunde" under feltet (ingen inline onclick pga. sikkerhedspolitikken)
 const kundeKnap = (e) => {
   const h = e.target.closest('[data-handl]');
   if (!h) return;
   if (h.dataset.handl === 'opdater') hentKunder(true);
   if (h.dataset.handl === 'manuel') manuelKunde();
-  if (h.dataset.handl === 'opstart') visOpstart();
-  if (h.dataset.handl === 'tilbage') skjulOpstart();
 };
 $('#kundeListe').addEventListener('click', kundeKnap);
-$('#ikkeListe').addEventListener('click', kundeKnap);
+$('#udenKunde').addEventListener('click', kundeKnap);
 
 // ---------- Igangværende supportsager ----------
 // Vises kun, hvis kunden har åbne sager. Fejler hentningen, vises der bare ingenting.
@@ -310,7 +276,7 @@ async function hentKunder(frisk) {
   input.placeholder = 'Henter kunder…';
   try {
     KUNDER = await api('/api/kunder' + (frisk ? '?frisk=1' : ''));
-    kundePlaceholder();
+    input.placeholder = `Søg blandt ${KUNDER.length} kunder`;
     if (frisk) kundeCombo.tegn();
   } catch (e) {
     input.placeholder = 'Kunne ikke hente kunder. Genindlæs siden.' + (e.kode ? ` (Fejlkode: ${e.kode})` : '');
@@ -361,7 +327,9 @@ nulstilEksterne();
 $('#opret').addEventListener('click', async () => {
   const fejl = $('#fejl'); fejl.textContent = '';
   const tjek = [
-    [!S.kunde && !(S.manuel && $('#manuelUrl').value.trim()), 'Vælg en kunde, eller skriv hjemmesiden hvis kunden ikke er på listen.'],
+    [!S.kunde && !S.manuel, 'Vælg en kunde, eller tryk "Opret uden kunde".'],
+    [S.manuel && !$('#manuelNavn').value.trim(), 'Skriv virksomhedsnavnet.'],
+    [S.manuel && !$('#manuelUrl').value.trim(), 'Skriv hjemmeside-linket.'],
     [!$('#emne').value.trim(), 'Skriv et emne.'],
     [!henvendelseMarkdown(), 'Beskriv hvad opgaven handler om.'],
     [!S.svar, 'Vælg hvem der skal have svar.'],
@@ -379,6 +347,7 @@ $('#opret').addEventListener('click', async () => {
       body: JSON.stringify({
         kundeId: S.kunde?.id || null,
         hjemmeside: S.manuel ? $('#manuelUrl').value.trim() : null,
+        firmanavn: S.manuel ? $('#manuelNavn').value.trim() : null,
         type: S.type,
         emne: $('#emne').value,
         henvendelse: henvendelseMarkdown(),
@@ -419,7 +388,7 @@ function visKvittering(d) {
 }
 
 function nulstilAlt() {
-  ['#emne', '#materialer', '#kNavn', '#kEmail', '#kTlf', '#manuelUrl'].forEach((s) => ($(s).value = ''));
+  ['#emne', '#materialer', '#kNavn', '#kEmail', '#kTlf', '#manuelNavn', '#manuelUrl'].forEach((s) => ($(s).value = ''));
   rydEditor();
   nulstilEksterne();
   document.querySelectorAll('#type button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === 'normal'));

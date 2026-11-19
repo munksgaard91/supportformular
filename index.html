@@ -115,6 +115,7 @@ input:focus,textarea:focus,button:focus-visible,.seg button:focus-visible{outlin
 .chip button{border:0;background:none;cursor:pointer;color:var(--daemp);font-size:16px;line-height:1;padding:0 6px}
 
 .forhaand{font-size:13px;color:var(--daemp);margin-top:6px}
+#manuel .mellem{margin-top:8px}
 .forhaand b{color:var(--tekst);font-weight:600}
 .blok{border-left:3px solid var(--blaa-lys);padding-left:16px;margin:0 0 22px}
 .blok > :last-child, .blok > .felt:last-child{margin-bottom:0}
@@ -196,12 +197,13 @@ body.har-video .bg-slor{display:block}
       <input type="text" id="kundeInput" placeholder="Henter kunder…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="kundeListe">
       <div class="liste" id="kundeListe" role="listbox"></div>
     </div>
-    <p class="forhaand" id="ikkeListe"><button class="link" type="button" data-handl="opstart">Min kunde er ikke på listen</button></p>
+    <p class="forhaand" id="udenKunde"><button class="link" type="button" data-handl="manuel">Opret uden kunde</button></p>
     <div id="kundeValgt" class="skjult"></div>
     <details id="sager" class="sager skjult"><summary></summary><ul></ul></details>
     <div id="manuel" class="skjult">
-      <input type="url" id="manuelUrl" placeholder="www.kundenshjemmeside.dk">
-      <p class="forhaand">Sagen oprettes uden link og får tagget <b>ikke linket</b>. <button class="link" type="button" id="tilbageSoeg">Søg igen</button></p>
+      <input type="text" id="manuelNavn" placeholder="Virksomhedsnavn" autocomplete="off">
+      <input type="url" id="manuelUrl" class="mellem" placeholder="Hjemmeside-link, fx www.kundenshjemmeside.dk">
+      <p class="forhaand">Sagen oprettes uden link til en kunde. <button class="link" type="button" id="tilbageSoeg">Søg igen</button></p>
     </div>
   </div>
 
