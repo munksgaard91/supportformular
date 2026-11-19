@@ -288,6 +288,7 @@ async function start() {
   hentKunder(false);
   lavPersonVaelgere(); // klar med det samme, også før medarbejderne er hentet
   try { FOLK = await api('/api/medarbejdere'); } catch { FOLK = []; }
+  visMig();
   lavPersonVaelgere();
   if (S.kunde) { udfyldNord(true); udfyldCc(); } // hvis kunden blev valgt, før listen var klar
 }
@@ -783,12 +784,29 @@ async function api(sti, opts = {}) {
   }
 }
 
-function visFormular() {
+// Profilbilledet øverst: fra Google, ellers fra ClickUp (når medarbejderne er hentet), ellers initialer
+function visMig() {
   const s = session();
+  if (!s) return;
   const initialer = s.navn.split(/\s+/).map((d) => d[0]).slice(0, 2).join('').toUpperCase();
-  $('#brugerNavn').innerHTML = `<span class="avatar mig">${s.billede ? `<img src="${esc(s.billede)}" alt="" referrerpolicy="no-referrer">` : esc(initialer)}</span>Logget ind som ${esc(s.navn)}`;
-  const img = $('#brugerNavn img');
-  if (img) img.onerror = () => { img.parentElement.textContent = initialer; };
+  const cu = (FOLK.find((p) => String(p.email || '').toLowerCase() === String(s.email || '').toLowerCase()) || {}).billede;
+  const billeder = [s.billede, cu].filter(Boolean);
+  $('#brugerNavn').innerHTML = `<span class="avatar mig">${esc(initialer)}</span>Logget ind som ${esc(s.navn)}`;
+  const boks = $('#brugerNavn .avatar');
+  const proev = (i) => {
+    if (i >= billeder.length) return;
+    const img = new Image();
+    img.referrerPolicy = 'no-referrer';
+    img.alt = '';
+    img.onload = () => { boks.textContent = ''; boks.appendChild(img); };
+    img.onerror = () => proev(i + 1);
+    img.src = billeder[i];
+  };
+  proev(0);
+}
+
+function visFormular() {
+  visMig();
   $('#login').classList.add('skjult');
   $('#kvittering').classList.add('skjult');
   $('#formular').classList.remove('skjult');
