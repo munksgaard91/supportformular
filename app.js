@@ -5,15 +5,15 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').trim();
 
-let KUNDER = [], FOLK = [];
-const S = { kunde: null, manuel: false, type: 'normal', svar: null, nord: null, cc: [] };
+let KUNDER = [], FOLK = [], OPSTARTER = null, OPSTART_FEJL = '';
+const S = { kunde: null, manuel: false, opstart: false, type: 'normal', svar: null, nord: null, cc: [] };
 
 function avatar(p) {
   return `<span class="avatar">${p.billede ? `<img src="${esc(p.billede)}" alt="">` : esc(p.initialer || p.navn.slice(0, 2).toUpperCase())}</span>`;
 }
 
 // ---------- Generisk søgeliste ----------
-function combo({ input, liste, hent, render, vaelg, tom }) {
+function combo({ input, liste, hent, render, vaelg, tom, fod }) {
   let fund = [], aktiv = 0;
   function tegn() {
     fund = hent(input.value);
@@ -21,6 +21,7 @@ function combo({ input, liste, hent, render, vaelg, tom }) {
     liste.innerHTML = fund.length
       ? fund.map((x, i) => `<div class="valg" role="option" data-i="${i}" aria-selected="${i === 0}">${render(x)}</div>`).join('')
       : `<div class="tom">${tom ? tom(input.value) : 'Ingen resultater'}</div>`;
+    if (fod) liste.innerHTML += `<div class="fod">${fod()}</div>`;
     liste.classList.add('aaben');
     input.setAttribute('aria-expanded', 'true');
   }
@@ -75,10 +76,12 @@ function personVaelger(rod, { flere, placeholder, valgt, onChange }) {
 
 // ---------- Kunde ----------
 function soegKunder(q) {
+  // "Min kunde er ikke på listen" skifter til kunderne i opstart
+  const kilde = S.opstart ? OPSTARTER || [] : KUNDER;
   q = norm(q);
-  if (!q) return KUNDER.slice(0, 8);
+  if (!q) return kilde.slice(0, 8);
   const start = [], inde = [];
-  for (const k of KUNDER) {
+  for (const k of kilde) {
     const n = k.navn.toLowerCase();
     const v = k.vis || k.domaene;
     if (n.startsWith(q) || v.startsWith(q) || k.domaene.startsWith(q)) start.push(k);
@@ -92,10 +95,39 @@ const LUKKET = /nedluk|opsag|opsig|lukket/i;
 const kundeCombo = combo({
   input: $('#kundeInput'), liste: $('#kundeListe'),
   hent: soegKunder,
-  render: (k) => `<span><b>${esc(k.navn)}</b><br><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>${LUKKET.test(k.status) ? `<span class="pille">${esc(k.status)}</span>` : ''}`,
+  render: (k) => `<span><b>${esc(k.navn)}</b><br><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span></span>${S.opstart || LUKKET.test(k.status) ? `<span class="pille">${esc(k.status)}</span>` : ''}`,
   vaelg: vaelgKunde,
-  tom: () => `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button> eller <button type="button" data-handl="manuel">opret uden kunde</button>.`,
+  tom: () => S.opstart
+    ? (OPSTARTER ? 'Ingen kunder i opstart matcher.' : OPSTART_FEJL || 'Henter kunder i opstart…')
+    : `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button>.`,
+  fod: () => S.opstart
+    ? `<button type="button" data-handl="tilbage">Tilbage til kundelisten</button> · <button type="button" data-handl="manuel">Opret uden kunde</button>`
+    : `<button type="button" data-handl="opstart">Min kunde er ikke på listen</button>`,
 });
+
+// Kunder i opstart (post-online, færdiggøres, afsluttet), der endnu ikke er på kundelisten.
+// Kun synlige efter "Min kunde er ikke på listen".
+function kundePlaceholder() {
+  $('#kundeInput').placeholder = S.opstart
+    ? (OPSTARTER ? `Søg blandt ${OPSTARTER.length} kunder i opstart` : 'Henter kunder i opstart…')
+    : `Søg blandt ${KUNDER.length} kunder`;
+}
+async function visOpstart() {
+  S.opstart = true;
+  $('#kundeInput').value = '';
+  kundePlaceholder(); kundeCombo.tegn();
+  if (OPSTARTER) return;
+  OPSTART_FEJL = '';
+  try { OPSTARTER = await api('/api/opstarter'); } catch (e) {
+    OPSTART_FEJL = 'Kunderne i opstart kunne ikke hentes.' + (e.kode ? ` (Fejlkode: ${esc(e.kode)})` : '');
+  }
+  if (S.opstart) { kundePlaceholder(); kundeCombo.tegn(); }
+}
+function skjulOpstart() {
+  S.opstart = false;
+  $('#kundeInput').value = '';
+  kundePlaceholder(); kundeCombo.tegn();
+}
 
 // Farvede mærker (produkter og status) med samme farver som i ClickUp.
 // Teksten bliver mørk på lyse farver og hvid på mørke.
@@ -133,7 +165,7 @@ function vaelgKunde(k) {
   visSager(k);
 }
 function nulstilKunde() {
-  S.kunde = null; S.manuel = false;
+  S.kunde = null; S.manuel = false; S.opstart = false; kundePlaceholder();
   visSager(null);
   $('#kundeValgt').classList.add('skjult'); $('#manuel').classList.add('skjult');
   $('#kundeSoeg').classList.remove('skjult');
@@ -152,6 +184,8 @@ $('#kundeListe').addEventListener('click', (e) => {
   if (!h) return;
   if (h.dataset.handl === 'opdater') hentKunder(true);
   if (h.dataset.handl === 'manuel') manuelKunde();
+  if (h.dataset.handl === 'opstart') visOpstart();
+  if (h.dataset.handl === 'tilbage') skjulOpstart();
 });
 
 // ---------- Igangværende supportsager ----------
@@ -274,7 +308,7 @@ async function hentKunder(frisk) {
   input.placeholder = 'Henter kunder…';
   try {
     KUNDER = await api('/api/kunder' + (frisk ? '?frisk=1' : ''));
-    input.placeholder = `Søg blandt ${KUNDER.length} kunder`;
+    kundePlaceholder();
     if (frisk) kundeCombo.tegn();
   } catch (e) {
     input.placeholder = 'Kunne ikke hente kunder. Genindlæs siden.' + (e.kode ? ` (Fejlkode: ${e.kode})` : '');
