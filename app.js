@@ -106,7 +106,7 @@ const kundeCombo = combo({
 // Den lille linje under kundefeltet skifter mellem de to lister
 function kundePlaceholder() {
   $('#ikkeListe').innerHTML = S.opstart
-    ? '<button class="link" type="button" data-handl="tilbage">Tilbage til kundelisten</button> · <button class="link" type="button" data-handl="manuel">Opret uden kunde</button>'
+    ? '<button class="link" type="button" data-handl="tilbage">Tilbage til kundelisten</button>'
     : '<button class="link" type="button" data-handl="opstart">Min kunde er ikke på listen</button>';
   $('#kundeInput').placeholder = S.opstart
     ? (OPSTARTER ? `Søg blandt ${OPSTARTER.length} kunder i opstart` : 'Henter kunder i opstart…')
