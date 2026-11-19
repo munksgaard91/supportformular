@@ -13,7 +13,7 @@ function avatar(p) {
 }
 
 // ---------- Generisk søgeliste ----------
-function combo({ input, liste, hent, render, vaelg, tom, fod }) {
+function combo({ input, liste, hent, render, vaelg, tom }) {
   let fund = [], aktiv = 0;
   function tegn() {
     fund = hent(input.value);
@@ -21,7 +21,6 @@ function combo({ input, liste, hent, render, vaelg, tom, fod }) {
     liste.innerHTML = fund.length
       ? fund.map((x, i) => `<div class="valg" role="option" data-i="${i}" aria-selected="${i === 0}">${render(x)}</div>`).join('')
       : `<div class="tom">${tom ? tom(input.value) : 'Ingen resultater'}</div>`;
-    if (fod) liste.innerHTML += `<div class="fod">${fod()}</div>`;
     liste.classList.add('aaben');
     input.setAttribute('aria-expanded', 'true');
   }
@@ -100,14 +99,15 @@ const kundeCombo = combo({
   tom: () => S.opstart
     ? (OPSTARTER ? 'Ingen kunder i opstart matcher.' : OPSTART_FEJL || 'Henter kunder i opstart…')
     : `Ingen kunder matcher. <button type="button" data-handl="opdater">Opdatér listen</button>.`,
-  fod: () => S.opstart
-    ? `<button type="button" data-handl="tilbage">Tilbage til kundelisten</button> · <button type="button" data-handl="manuel">Opret uden kunde</button>`
-    : `<button type="button" data-handl="opstart">Min kunde er ikke på listen</button>`,
 });
 
 // Kunder i opstart (post-online, færdiggøres, afsluttet), der endnu ikke er på kundelisten.
 // Kun synlige efter "Min kunde er ikke på listen".
+// Den lille linje under kundefeltet skifter mellem de to lister
 function kundePlaceholder() {
+  $('#ikkeListe').innerHTML = S.opstart
+    ? '<button class="link" type="button" data-handl="tilbage">Tilbage til kundelisten</button> · <button class="link" type="button" data-handl="manuel">Opret uden kunde</button>'
+    : '<button class="link" type="button" data-handl="opstart">Min kunde er ikke på listen</button>';
   $('#kundeInput').placeholder = S.opstart
     ? (OPSTARTER ? `Søg blandt ${OPSTARTER.length} kunder i opstart` : 'Henter kunder i opstart…')
     : `Søg blandt ${KUNDER.length} kunder`;
@@ -115,7 +115,7 @@ function kundePlaceholder() {
 async function visOpstart() {
   S.opstart = true;
   $('#kundeInput').value = '';
-  kundePlaceholder(); kundeCombo.tegn();
+  kundePlaceholder(); $('#kundeInput').focus(); kundeCombo.tegn();
   if (OPSTARTER) return;
   OPSTART_FEJL = '';
   try { OPSTARTER = await api('/api/opstarter'); } catch (e) {
@@ -126,7 +126,7 @@ async function visOpstart() {
 function skjulOpstart() {
   S.opstart = false;
   $('#kundeInput').value = '';
-  kundePlaceholder(); kundeCombo.tegn();
+  kundePlaceholder(); $('#kundeInput').focus(); kundeCombo.tegn();
 }
 
 // Farvede mærker (produkter og status) med samme farver som i ClickUp.
@@ -153,7 +153,7 @@ function farvMaerker(rod) {
 
 function vaelgKunde(k) {
   S.kunde = k; S.manuel = false;
-  $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.add('skjult');
+  $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.add('skjult'); $('#ikkeListe').classList.add('skjult');
   const el = $('#kundeValgt');
   el.classList.remove('skjult');
   el.innerHTML = `<div class="kunde"><span><b>${esc(k.navn)}</b><span class="sub">${esc(k.vis || k.domaene || 'Ingen hjemmeside på kundekortet')}</span>${produktMaerker(k.produkter)}</span>
@@ -168,25 +168,27 @@ function nulstilKunde() {
   S.kunde = null; S.manuel = false; S.opstart = false; kundePlaceholder();
   visSager(null);
   $('#kundeValgt').classList.add('skjult'); $('#manuel').classList.add('skjult');
-  $('#kundeSoeg').classList.remove('skjult');
+  $('#kundeSoeg').classList.remove('skjult'); $('#ikkeListe').classList.remove('skjult');
   $('#kundeInput').focus(); opdaterNavn();
 }
 function manuelKunde() {
   S.kunde = null; S.manuel = true;
   visSager(null);
-  $('#kundeSoeg').classList.add('skjult'); $('#manuel').classList.remove('skjult');
+  $('#kundeSoeg').classList.add('skjult'); $('#ikkeListe').classList.add('skjult'); $('#manuel').classList.remove('skjult');
   $('#manuelUrl').focus(); opdaterNavn();
 }
 $('#tilbageSoeg').onclick = nulstilKunde;
-// Knapperne i "Ingen kunder matcher" (ingen inline onclick pga. sikkerhedspolitikken)
-$('#kundeListe').addEventListener('click', (e) => {
+// Knapperne i "Ingen kunder matcher" og linjen under feltet (ingen inline onclick pga. sikkerhedspolitikken)
+const kundeKnap = (e) => {
   const h = e.target.closest('[data-handl]');
   if (!h) return;
   if (h.dataset.handl === 'opdater') hentKunder(true);
   if (h.dataset.handl === 'manuel') manuelKunde();
   if (h.dataset.handl === 'opstart') visOpstart();
   if (h.dataset.handl === 'tilbage') skjulOpstart();
-});
+};
+$('#kundeListe').addEventListener('click', kundeKnap);
+$('#ikkeListe').addEventListener('click', kundeKnap);
 
 // ---------- Igangværende supportsager ----------
 // Vises kun, hvis kunden har åbne sager. Fejler hentningen, vises der bare ingenting.
